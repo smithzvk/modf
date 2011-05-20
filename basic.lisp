@@ -13,14 +13,18 @@
   (with-gensyms (slot-name class slots new-instance slot)
     `(let* ((,slot-name ,(third expr))
             (,class (class-of ,val))
-            (,slots (closer-mop:class-slots class))
-            (,new-instance (make-instance class)))
+            (,slots (closer-mop:class-slots ,class))
+            (,new-instance (make-instance ,class)))
        (loop for ,slot in ,slots do
-         (if (eql ,slot-name (closer-mop:slot-definition-name ,slot))
-             (setf (slot-value ,new-instance ,slot-name)
-                   ,new-val )
-             (setf (slot-value ,new-instance (closer-mop:slot-definition-name ,slot))
-                   (slot-value ,val (closer-mop:slot-definition-name ,slot)))))
+         (cond ((eql ,slot-name (closer-mop:slot-definition-name ,slot))
+                (setf (slot-value ,new-instance ,slot-name)
+                      ,new-val ))
+               ((slot-boundp ,val (closer-mop:slot-definition-name ,slot))
+                (setf (slot-value ,new-instance (closer-mop:slot-definition-name
+                                                 ,slot ))
+                      (slot-value ,val (closer-mop:slot-definition-name ,slot)) ))
+               (t (slot-makunbound ,new-instance
+                                   (closer-mop:slot-definition-name ,slot) ))))
        ,new-instance )))
 
 (defun replace-nth (nth list new-val)
