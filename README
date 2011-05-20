@@ -192,10 +192,120 @@ You define expansions based on the lexical structure of the code via
 builder code =(cons new-value (cdr x))=.  These functions return new code that
 will replace the old code that was passed as an argument to the function.
 
+There is a big difference between these functions and the =setf= equivalents.
+You need to specify which argument in the form contains the object that is being
+modified.  This is taken as an extra argument right after the name of the
+expander.
+
 In principle there is no need to have =define-modf-expander=, since any modifier
 can be expressed as a function.  It might be beneficial to "open code" certain
 =modf= expansions as it will give the compiler a crack at optimizing the
 resultant code.
+
+There is one special form in the "=modf= syntax," =modf-eval=.  =Modf-eval=
+marks sections of code that =modf= shouldn't try to invert, and should just
+leave for the Lisp system to evaluate or compile as it will (the same way =modf=
+treats any atom it encounters).  This is important if so you can have code like
+this...
+
+#+BEGIN_SRC lisp
+(modf (second (modf-eval '(1 2 3 4 5))) 5)
+#+END_SRC
+
+Without =modf-eval=, =modf= would try to invert the form =(quote (1 2 3 4 5))=,
+rather than modify the list =(1 2 3 4 5)=.  You can even go so far as...
+
+#+BEGIN_SRC lisp
+(modf (second (modf-eval
+               (modf (third (modf-eval '(1 2 3 4 5))) 10) )) 5)
+#+END_SRC
+
+Which allows you to chain =modf= statements.  This can get a little clunky, so
+to ease the reuse of previously calculated results, you can use extra =modf=
+arguments to reuse previous results.
+
+#+BEGIN_SRC lisp
+(modf (third (modf-eval '(1 2 3 4 5))) 10
+      last-result
+      (second last-result) 5 )
+== (let ((last-result (modf (third (modf-eval '(1 2 3 4 5))))))
+      (modf (second last-result) 5) )
+#+END_SRC
+
+You can even use previous results in non-trivial ways...
+
+#+BEGIN_SRC lisp
+(let ((lst '(1 2 3 4 5)))
+  (modf (third lst) 10
+        result-a
+        (second lst) 5
+        result-b
+        (fourth lst) (list result-a result-b) ))
+==> (1 2 3 ((1 2 10 4 5) (1 5 3 4 5)) 5)
+#+END_SRC
+
+** An Example
+
+As an example of how to use this, here is how you might set up =modf= to work
+with an affine matrix data structure based on FSet seqs.
+
+#+BEGIN_SRC lisp
+;;; First we define how our data structure like we always would.
+(defclass fset-matrix ()
+  ((dims :initarg :dims :accessor mat-dimensions :accessor dims-of)
+   (seq :initarg :seq :accessor seq :accessor seq-of)
+   (a :initarg :a :initform #(1 0 0 1) :type (array integer (4)) :accessor a-of)
+   (b :initarg :b :initform #(0 0) :type (array integer (2)) :accessor b-of) ))
+
+(defun make-fset-matrix (dims &key (initial-element 0))
+  (let ((arr (make-instance 'fset-matrix
+                            :seq (fset:with (fset:empty-seq initial-element)
+                                            (apply #'* dims) initial-element )
+                            :dims dims )))
+    arr ))
+
+(defun fref (mat &rest idx)
+  (destructuring-bind (i j) idx
+    (aif2 (fset:@ (seq-of mat)
+                  (+ (* (car (dims-of mat))
+                        (+ (* (aref (a-of mat) 0) i)
+                           (* (aref (a-of mat) 1) j)
+                           (aref (b-of mat) 0) ))
+                     (+ (* (aref (a-of mat) 2) i)
+                        (* (aref (a-of mat) 3) j)
+                        (aref (b-of mat) 1) )))
+          it
+          (error "Indicies ~A out of bounds ~A." idx (dims-of mat)) )))
+
+(defun (setf fref) (val mat &rest idx)
+  (setf (seq-of mat)
+        (destructuring-bind (i j) idx
+          (fset:with (seq-of mat)
+                     (+ (* (car (dims-of mat))
+                           (+ (* (aref (a-of mat) 0) i)
+                              (* (aref (a-of mat) 1) j)
+                              (aref (b-of mat) 0) ))
+                        (+ (* (aref (a-of mat) 2) i)
+                           (* (aref (a-of mat) 3) j)
+                           (aref (b-of mat) 1) ))
+                     val )))
+  val )
+
+;; Then we define a modf function that will inform modf how to invert
+;; access function.
+
+(define-modf-function fref (val mat &rest idx)
+  (destructuring-bind (i j) idx
+    (modf (fset:@ (slot-value mat 'seq)
+                  (+ (* (car (dims-of mat))
+                        (+ (* (aref (a-of mat) 0) i)
+                           (* (aref (a-of mat) 1) j)
+                           (aref (b-of mat) 0) ))
+                     (+ (* (aref (a-of mat) 2) i)
+                        (* (aref (a-of mat) 3) j)
+                        (aref (b-of mat) 1) )))
+          val )))
+#+END_SRC
 
 ** The Code
 
