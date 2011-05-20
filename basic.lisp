@@ -39,6 +39,12 @@
 (define-modf-function nthcdr 2 (new-val nth obj)
   (replace-nthcdr nth obj new-val) )
 
+(define-modf-function subseq 1 (new-val seq start &optional (end (length seq)))
+  (concatenate (type-of seq)
+               (subseq seq 0 start)
+               (subseq new-val 0 (min (length new-val) (- end start)))
+               (subseq seq (+ start (min (length new-val) (- end start)))) ))
+
 ;; @\section{Array Manipulations}
 
 ;; @Arrays are inherently non-functional structures in Common Lisp.  This means
