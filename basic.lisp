@@ -28,7 +28,7 @@
       (cons (car list) (replace-nth (- nth 1) (cdr list) new-val))
       (cons new-val (cdr list)) ))
 
-(define-modf-expander nth 3 (expr val new-val)
+(define-modf-expander nth 2 (expr val new-val)
   `(replace-nth ,(second expr) ,val ,new-val))
 
 

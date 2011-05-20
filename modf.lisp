@@ -54,7 +54,7 @@ benefit, not the users."
 ;; <<>>=
 (defmacro define-modf-function (name nth-arg (new-val &rest args) &body body)
   `(progn
-     (defun ,(intern (modf-name name)) (,new-val ,@args)
+     (defun ,(intern (modf-name name) :modf) (,new-val ,@args)
        ,@body )
      (setf (gethash ',name *modf-nth-arg*)
            ,nth-arg )))
@@ -62,7 +62,7 @@ benefit, not the users."
 ;; <<>>=
 (defmacro define-modf-method (name nth-arg (new-val &rest args) &body body)
   `(progn
-     (defmethod ,(intern (modf-name name)) (,new-val ,@args)
+     (defmethod ,(intern (modf-name name) :modf) (,new-val ,@args)
        ,@body )
      (setf (gethash ',name *modf-nth-arg*)
            ,nth-arg )))
@@ -85,20 +85,22 @@ benefit, not the users."
          new-val )
         ((gethash (car expr) *modf-rewrites*)
          (modf-expand new-val (funcall (gethash (car expr) *modf-rewrites*) expr)) )
-        ((fboundp (intern (modf-name (car expr))))
+        ((fboundp (intern (modf-name (car expr)) :modf))
          (let ((form (gensym)))
            (modf-expand `(let ((,form ,(nth (gethash (car expr) *modf-nth-arg*)
                                             expr )))
-                           (,(intern (modf-name (car expr)))
+                           (,(intern (modf-name (car expr)) :modf)
                              ,new-val ,form ,@(cddr expr) ))
                         (nth (gethash (car expr) *modf-nth-arg*) expr) )))
         ((gethash (car expr) *modf-expansions*)
          (let ((form (gensym)))
-           (multiple-value-bind (builder next-expansion)
+           (multiple-value-bind (builder)
                (funcall (gethash (car expr) *modf-expansions*) expr form new-val)
-             (modf-expand `(let ((,form ,(funcall next-expansion expr)))
+             (modf-expand `(let ((,form ,(nth (gethash (car expr)
+                                                       *modf-nth-arg* )
+                                              expr )))
                              ,builder )
-                          (funcall next-expansion expr) ))))
+                          (nth (gethash (car expr) *modf-nth-arg*) expr) ))))
         (t (error "Don't know how to handle \"~A\"" expr)) ))
 
 ;; <<>>=
