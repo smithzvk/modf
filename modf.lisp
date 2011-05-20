@@ -8,12 +8,18 @@
   (make-hash-table) )
 
 ;; <<>>=
-(defmacro define-modf-expander (name (expr val new-val)
+(defvar *modf-nth-arg* (make-hash-table))
+
+;; <<>>=
+(defmacro define-modf-expander (name nth-arg
+                                (expr val new-val)
                                 &body body )
   `(setf
     (gethash ',name *modf-expansions*)
     (lambda (,expr ,val ,new-val)
-      ,@body )))
+      ,@body )
+    (gethash ',name *modf-nth-arg*)
+    ,nth-arg ))
 
 ;; @\section{Rewrite Rules}
 
@@ -44,9 +50,6 @@ benefit, not the users."
   (mkstr "BUILDER:"
          (package-name (symbol-package symbol))
          ":" (symbol-name symbol) ))
-
-;; <<>>=
-(defvar *modf-nth-arg* (make-hash-table))
 
 ;; <<>>=
 (defmacro define-modf-function (name nth-arg (new-val obj &rest args) &body body)
