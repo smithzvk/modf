@@ -52,17 +52,17 @@ benefit, not the users."
          ":" (symbol-name symbol) ))
 
 ;; <<>>=
-(defmacro define-modf-function (name nth-arg (new-val obj &rest args) &body body)
+(defmacro define-modf-function (name nth-arg (new-val &rest args) &body body)
   `(progn
-     (defun ,(intern (modf-name name)) (,new-val ,obj ,@args)
+     (defun ,(intern (modf-name name)) (,new-val ,@args)
        ,@body )
      (setf (gethash ',name *modf-nth-arg*)
            ,nth-arg )))
 
 ;; <<>>=
-(defmacro define-modf-method (name nth-arg (new-val obj &rest args) &body body)
+(defmacro define-modf-method (name nth-arg (new-val &rest args) &body body)
   `(progn
-     (defmethod ,(intern (modf-name name)) (,new-val ,obj ,@args)
+     (defmethod ,(intern (modf-name name)) (,new-val ,@args)
        ,@body )
      (setf (gethash ',name *modf-nth-arg*)
            ,nth-arg )))
