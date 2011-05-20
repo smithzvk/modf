@@ -90,7 +90,11 @@ benefit, not the users."
            (modf-expand `(let ((,form ,(nth (gethash (car expr) *modf-nth-arg*)
                                             expr )))
                            (,(intern (modf-name (car expr)) :modf)
-                             ,new-val ,form ,@(cddr expr) ))
+                             ,new-val
+                             ,@(cdr
+                                (replace-nth
+                                 (gethash (car expr) *modf-nth-arg*)
+                                 expr form ))))
                         (nth (gethash (car expr) *modf-nth-arg*) expr) )))
         ((gethash (car expr) *modf-expansions*)
          (let ((form (gensym)))
