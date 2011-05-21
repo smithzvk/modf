@@ -91,30 +91,62 @@ If we want to set a number on the board, we would do this...
 #+END_SRC
 
 ...which is considerably more convoluted.  But to really nail this home,
-consider that we have a mess such as this...
+consider we have a mess like =crazy-datastructure= which is a mixture of
+classes, arrays, lists, and strings...
 
-#+BEGIN_EXAMPLE
-CL-USER>
+#+BEGIN_SRC lisp
 (defclass test-class ()
-  ((slot1 :initform 1)
-   (slot2 :initform 2)
+  ((slot1 :initform 1 :initarg :slot1)
+   (slot2 :initform 2 :initarg :slot2)
    (array :initform #() :initarg :array) ))
-TEST-CLASS
 
-CL-USER>
+(defparameter crazy-datastructure
+  (list 1 (make-instance 'test-class
+                         :array (vector 'a 'b "hello") )
+        3 4 ))
+
 (defmethod print-object ((obj test-class) str)
   (with-slots (slot1 slot2 array) obj
     (format str "#<TEST-CLASS: SLOT1: ~S, SLOT2: ~S, ARRAY: ~S>"
             slot1 slot2 array )))
+#+END_SRC
 
+#+BEGIN_EXAMPLE
 CL-USER> (subseq (aref (slot-value (second crazy-datastructure) 'array) 2) 1 3)
 "el"
+#+END_EXAMPLE
+
+Let's say we want to modify that substring to "EL" instead.
+
+#+BEGIN_EXAMPLE
+CL-USER> 
+(modf (subseq (aref (slot-value (second crazy-datastructure) 'array) 2) 1 3) "EL")
+(1 #<TEST-CLASS: SLOT1: 1, SLOT2: 2, ARRAY: #(A B "hELlo")> 3 4)
 
 CL-USER> 
-;; Let's change that "el" to "EL".  How we might normally do this:
+;; And the original CRAZY-DATASTRUCTURE remains unchanged
+crazy-datastructure
+(1 #<TEST-CLASS: SLOT1: 1, SLOT2: 2, ARRAY: #(A B "hello")> 3 4)
+
+CL-USER> 
+;; If we compare to the SETF form
+(setf (subseq (aref (slot-value (second crazy-datastructure) 'array) 2) 1 3) "EL")
+"EL"
+
+CL-USER> crazy-datastructure
+(1 #<TEST-CLASS: SLOT1: 1, SLOT2: 2, ARRAY: #(A B "hELlo")> 3 4)
+#+END_EXAMPLE
+
+If we consider how we might perform this functional modification without
+=modf=...
+
+#+BEGIN_SRC lisp
+CL-USER> 
 (cons (car crazy-datastructure)
       (cons 
        (make-instance 'test-class
+                      :slot1 (slot-value (second crazy-datastructure) 'slot1)
+                      :slot2 (slot-value (second crazy-datastructure) 'slot2)
                       :array (vector
                               (aref (slot-value (second crazy-datastructure)
                                                 'array) 0)
@@ -133,26 +165,7 @@ CL-USER>
                                                    'array) 2)
                                             3))))
        (cddr crazy-datastructure) ))
-(1 #<TEST-CLASS: SLOT1: 1, SLOT2: 2, ARRAY: #(A B "hELlo")> 3 4)
-
-CL-USER> 
-;; If we do the same thing with MODF
-(modf (subseq (aref (slot-value (second crazy-datastructure) 'array) 2) 1 3) "EL")
-(1 #<TEST-CLASS: SLOT1: 1, SLOT2: 2, ARRAY: #(A B "hELlo")> 3 4)
-
-CL-USER> 
-;; And the original CRAZY-DATASTRUCTURE remains unchanged
-crazy-datastructure
-(1 #<TEST-CLASS: SLOT1: 1, SLOT2: 2, ARRAY: #(A B "hello")> 3 4)
-
-CL-USER> 
-;; If we compare to the SETF form
-(setf (subseq (aref (slot-value (second crazy-datastructure) 'array) 2) 1 3) "EL")
-"EL"
-
-CL-USER> crazy-datastructure
-(1 #<TEST-CLASS: SLOT1: 1, SLOT2: 2, ARRAY: #(A B "hELlo")> 3 4)
-#+END_EXAMPLE
+#+END_SRC
 
 Here we made it simple to functionally modify parts of a data structure that
 includes a string nested in an array nested in a class nested in a list.  =Modf=
