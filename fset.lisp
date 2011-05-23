@@ -16,8 +16,11 @@
              &optional (end (fset:size collection)) )
   (let ((seq (fset:convert 'fset:seq new-val)))
     (fset:concat (fset:subseq collection 0 start)
-                 (fset:concat (fset:subseq seq 0 (- end start))
-                              (fset:subseq collection (+ start (fset:size seq))) ))))
+                 (fset:concat
+                  (fset:subseq seq 0 (min (fset:size seq) (- end start)))
+                  (fset:subseq collection
+                               (+ start
+                                  (min (fset:size seq) (- end start)) ))))))
 
 (define-modf-function fset:last 1 (new-val collection)
   (fset:with-last (fset:less-last collection) new-val) )
