@@ -114,7 +114,8 @@ specialize on any of ARGS."
             `(let ((,form
                     ,(let ((enclosed-obj (nth (gethash (car expr) *modf-nth-arg*)
                                               expr )))
-                       (let ((it (gethash (car enclosed-obj) *modf-nth-arg*)))
+                       (let ((it (and (consp enclosed-obj)
+                                      (gethash (car enclosed-obj) *modf-nth-arg*) )))
                          (if it
                              (replace-nth it
                                           enclosed-obj
@@ -136,7 +137,8 @@ specialize on any of ARGS."
               `(let ((,form
                       ,(let ((enclosed-obj (nth (gethash (car expr) *modf-nth-arg*)
                                                 expr )))
-                         (let ((it (gethash (car enclosed-obj) *modf-nth-arg*)))
+                         (let ((it (and (consp enclosed-obj)
+                                        (gethash (car enclosed-obj) *modf-nth-arg*) )))
                            (if it
                                (replace-nth it
                                             enclosed-obj
