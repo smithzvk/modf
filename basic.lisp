@@ -63,6 +63,14 @@
     (setf (apply #'aref new-arr idx) new-val)
     new-arr ))
 
+;; @\section{Hash Table Manipulations}
+
+;; @Same deal as arrays.  Avoid using this for large hash tables which, quite
+;; frankly, is the most common use case for any hash tables.  It is just here
+;; for completeness.  If you are using a hash table and need to functionally
+;; modify it many times, then use a functional dictionary structure, like an
+;; FSet map or a FUNDS dictionary.
+
 (define-modf-function gethash 2 (new-val key hash-table)
   (let ((new-hash (alexandria:copy-hash-table hash-table)))
     (setf (gethash key new-hash) new-val)

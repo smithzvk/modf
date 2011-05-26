@@ -7,17 +7,11 @@
   "This library simplifies functional programming by making it easier to make
 new data structures with specified changes in place."
   :components ((:file "package")
+               (:file "utils")
                (:file "modf")
                (:file "rewrite-rules")
-               (:file "basic")
-               (:file "fset") )
+               (:file "basic"))
   :serial t
-  :depends-on (:toolbox :iterate) )
+  :depends-on (:alexandria :iterate :closer-mop) )
 
-(asdf:defsystem :modf-fset
-  :name "FSet extensions for MODF"
-  :author "Zachary Smith <zachkostsmith@gmail.com>"
-  :license "LLGPL"
-  :components ((:file "fset"))
-  :serial t
-  :depends-on (:toolbox :iterate :modf :fset) )
+

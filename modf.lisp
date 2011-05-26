@@ -39,7 +39,7 @@
 ;; <<>>=
 (defmacro define-modf-rewrite (name (expr) &body body)
   `(setf (gethash ',name *modf-rewrites*)
-         (/. (,expr)
+         (lambda (,expr)
             ,@body )))
 
 ;; <<>>=
