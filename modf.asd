@@ -12,6 +12,6 @@ new data structures with specified changes in place."
                (:file "rewrite-rules")
                (:file "basic"))
   :serial t
-  :depends-on (:alexandria :iterate :closer-mop) )
+  :depends-on (:alexandria :closer-mop) )
 
 
