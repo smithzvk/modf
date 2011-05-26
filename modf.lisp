@@ -3,17 +3,25 @@
 
 ;; @\section{Exapansions}
 
-;; <<>>=
-(defvar *modf-expansions*
-  (make-hash-table) )
+;; @
 
 ;; <<>>=
-(defvar *modf-nth-arg* (make-hash-table))
+(defvar *modf-expansions*
+  (make-hash-table)
+  "Holds expansion functions" )
+
+;; <<>>=
+(defvar *modf-nth-arg* (make-hash-table)
+  "Holds what argument to try to invert next." )
 
 ;; <<>>=
 (defmacro define-modf-expander (name nth-arg
                                 (expr val new-val)
                                 &body body )
+  "Define a new expander which inverts forms starting with NAME.  Your function
+should return an expansion from EXPR to a form that will build a new object that
+has NEW-VAL in the place specified by expr.  NTH-ARG marks which argument is
+considered the actual data which will be inverted next."
   `(setf
     (gethash ',name *modf-expansions*)
     (lambda (,expr ,val ,new-val)
@@ -30,29 +38,36 @@
 (defvar *modf-rewrites*
   (make-hash-table) )
 
-;; (1) A function that returns the next form that needs expansion
-
-;; (2) A function that given a symbol, FORM, representing the value that a form
-;; used to have, and a symbol representing the value that (FUNC FORM) should
-;; evaluate to, returns a form that builds the correct data structure.
-
 ;; <<>>=
 (defmacro define-modf-rewrite (name (expr) &body body)
+  "Define a new rewrite rule.  If a form starting with NAME is encountered, call
+the defined function to return a form that we can deal with (i.e. one defined
+via DEFINE-MODF-EXPANDER, DEFINE-MODF-FUNCTION, and DEFINE-MODF-METHOD)."
   `(setf (gethash ',name *modf-rewrites*)
          (lambda (,expr)
             ,@body )))
+
+;; @\section{Defining Modf functions and methods}
+
+;; @Much like you can define (setf accessor) functions and methods, you can do
+;; the same with Modf.  This is done with <<define-modf-function>> and
+;; <<define-modf-method>>.  Unfortunately we can't use syntactic sugar like
+;; (defun (modf car) ...) without defining our own defun macro which is a bit
+;; heavy handed.
 
 ;; <<>>=
 (defun modf-name (symbol)
   "Make a symbol name that depends on symbol name and package, but is very
 unlikely to be chosen by anyone.  This is for avoiding collisions for my
-benefit, not the users."
+benefit, not the users, as these symbols belong to the MODF package."
   (mkstr "BUILDER:"
          (package-name (symbol-package symbol))
          ":" (symbol-name symbol) ))
 
 ;; <<>>=
 (defmacro define-modf-function (name nth-arg (new-val &rest args) &body body)
+  "Define a new modf function.  It inverts NAME forms by modifying the NTH-ARG
+term of the arguments of the place form in the MODF macro."
   `(progn
      (defun ,(intern (modf-name name) :modf) (,new-val ,@args)
        ,@body )
@@ -61,21 +76,28 @@ benefit, not the users."
 
 ;; <<>>=
 (defmacro define-modf-method (name nth-arg (new-val &rest args) &body body)
+  "Define a new modf method.  It inverts NAME forms by modifying the NTH-ARG
+term of the arguments of the place form in the MODF macro.  This method can
+specialize on any of ARGS."
   `(progn
      (defmethod ,(intern (modf-name name) :modf) (,new-val ,@args)
        ,@body )
      (setf (gethash ',name *modf-nth-arg*)
            ,nth-arg )))
 
-;; <<>>=
-(defmacro modf-eval (&rest args)
-  `(progn ,@args) )
-
 ;; @\section{The {\em modf} macro}
 
-;; @The <<modf>> macro is the main entry point to the library.
+;; @The <<modf>> macro is the main entry point to the library.  It passes its
+;; arguments to the <<modf-expand>> function.
 
-;; The basic syntax of the <<modf>> macro is as follows
+;; The basic syntax of the <<modf>> macro is (modf place new-value) where place
+;; is a normal form for accessing a part of some data.  Modf will invert this
+;; form into a form that will build a new hunk of data equivalent to the old
+;; except that the particular specified place will have the value new-value.  It
+;; inverts based on the rules and functionds defined via define-modf-rewrite,
+;; define-modf-expander, define-modf-method, and define-modf-function, in that
+;; order.  It recognizes one special form, modf-eval, which instructs it to not
+;; try to invert the enclosed form and just evaluate it.
 
 ;; <<>>=
 (defun modf-expand (new-val expr)
@@ -114,4 +136,8 @@ benefit, not the users."
         `(let ((,next-symbol ,(modf-expand value place)))
            (modf ,next-place ,next-value ,@next-args) ))
       (modf-expand value place) ))
+
+;; <<>>=
+(defmacro modf-eval (&rest args)
+  `(progn ,@args) )
 
