@@ -2,7 +2,7 @@
 (asdf:defsystem :modf
   :name "A SETF like macro for functional programming"
   :author "Zachary Smith <zachkostsmith@gmail.com>"
-  :license "LLGPL"
+  :license "Modified BSD"
   :description
   "This library simplifies functional programming by making it easier to make
 new data structures with specified changes in place."
