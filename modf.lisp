@@ -100,42 +100,71 @@ specialize on any of ARGS."
 ;; try to invert the enclosed form and just evaluate it.
 
 ;; <<>>=
-(defun modf-expand (new-val expr)
+(defun modf-expand (new-val expr form)
   (cond ((atom expr)
          new-val )
         ((eql (car expr) 'modf-eval)
          new-val )
         ((gethash (car expr) *modf-rewrites*)
-         (modf-expand new-val (funcall (gethash (car expr) *modf-rewrites*) expr)) )
+         (modf-expand new-val (funcall (gethash (car expr) *modf-rewrites*) expr)
+                      form ))
         ((fboundp (intern (modf-name (car expr)) :modf))
-         (let ((form (gensym)))
-           (modf-expand `(let ((,form ,(nth (gethash (car expr) *modf-nth-arg*)
-                                            expr )))
-                           (,(intern (modf-name (car expr)) :modf)
-                             ,new-val
-                             ,@(cdr
-                                (replace-nth
-                                 (gethash (car expr) *modf-nth-arg*)
-                                 expr form ))))
-                        (nth (gethash (car expr) *modf-nth-arg*) expr) )))
+         (let ((enclosed-obj-sym (gensym)) )
+           (modf-expand
+            `(let ((,form
+                    ,(let ((enclosed-obj (nth (gethash (car expr) *modf-nth-arg*)
+                                              expr )))
+                       (let ((it (gethash (car enclosed-obj) *modf-nth-arg*)))
+                         (if it
+                             (replace-nth it
+                                          enclosed-obj
+                                          enclosed-obj-sym )
+                             enclosed-obj )))))
+               (,(intern (modf-name (car expr)) :modf)
+                 ,new-val
+                 ,@(cdr
+                    (replace-nth
+                     (gethash (car expr) *modf-nth-arg*)
+                     expr form ))))
+            (nth (gethash (car expr) *modf-nth-arg*) expr)
+            enclosed-obj-sym )))
         ((gethash (car expr) *modf-expansions*)
-         (let ((form (gensym)))
+         (let ((enclosed-obj-sym (gensym)) )
            (multiple-value-bind (builder)
                (funcall (gethash (car expr) *modf-expansions*) expr form new-val)
-             (modf-expand `(let ((,form ,(nth (gethash (car expr)
-                                                       *modf-nth-arg* )
-                                              expr )))
-                             ,builder )
-                          (nth (gethash (car expr) *modf-nth-arg*) expr) ))))
+             (modf-expand
+              `(let ((,form
+                      ,(let ((enclosed-obj (nth (gethash (car expr) *modf-nth-arg*)
+                                                expr )))
+                         (let ((it (gethash (car enclosed-obj) *modf-nth-arg*)))
+                           (if it
+                               (replace-nth it
+                                            enclosed-obj
+                                            enclosed-obj-sym )
+                               enclosed-obj )))))
+                 ,builder )
+              (nth (gethash (car expr) *modf-nth-arg*) expr)
+              enclosed-obj-sym ))))
         (t (error "Don't know how to handle \"~A\"" expr)) ))
 
 ;; <<>>=
 (defmacro modf (place value &rest args)
+  "Make a new object \(which may use some of the old object) such that PLACE
+evaluates to VALUE.
+
+ARGS should have the form...
+
+ARGS : NIL
+     | (TEMPORARY-BINDING ANOTHER-MODF-PLACE ANOTHER-VALUE . ARGS)
+
+Use it to specify a temporary binding for the new object created which will be
+used in the subsequence MODF-PLACE NEW-VALUE pairs until the end of the MODF
+form."
   (if args
       (destructuring-bind (next-symbol next-place next-value &rest next-args) args
-        `(let ((,next-symbol ,(modf-expand value place)))
+        `(let ((,next-symbol ,(modf-expand value place (gensym))))
            (modf ,next-place ,next-value ,@next-args) ))
-      (modf-expand value place) ))
+      (modf-expand value place (gensym)) ))
 
 ;; <<>>=
 (defmacro modf-eval (&rest args)
