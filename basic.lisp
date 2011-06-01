@@ -27,6 +27,15 @@
                                    (closer-mop:slot-definition-name ,slot) ))))
        ,new-instance )))
 
+(define-modf-method pathname-directory 1 (new-val path)
+  (make-pathname :directory new-val :defaults path) )
+
+(define-modf-method pathname-name 1 (new-val path)
+  (make-pathname :name new-val :defaults path) )
+
+(define-modf-method pathname-type 1 (new-val path)
+  (make-pathname :type new-val :defaults path) )
+
 (defun replace-nth (nth list new-val)
   (if (> nth 0)
       (cons (car list) (replace-nth (- nth 1) (cdr list) new-val))
