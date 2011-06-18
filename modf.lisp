@@ -22,12 +22,13 @@
 should return an expansion from EXPR to a form that will build a new object that
 has NEW-VAL in the place specified by expr.  NTH-ARG marks which argument is
 considered the actual data which will be inverted next."
-  `(setf
-    (gethash ',name *modf-expansions*)
-    (lambda (,expr ,val ,new-val)
-      ,@body )
-    (gethash ',name *modf-nth-arg*)
-    ,nth-arg ))
+  `(eval-when (:compile-toplevel :load-toplevel :execute)
+     (setf
+      (gethash ',name *modf-expansions*)
+      (lambda (,expr ,val ,new-val)
+        ,@body )
+      (gethash ',name *modf-nth-arg*)
+      ,nth-arg )))
 
 ;; @\section{Rewrite Rules}
 
@@ -43,9 +44,10 @@ considered the actual data which will be inverted next."
   "Define a new rewrite rule.  If a form starting with NAME is encountered, call
 the defined function to return a form that we can deal with (i.e. one defined
 via DEFINE-MODF-EXPANDER, DEFINE-MODF-FUNCTION, and DEFINE-MODF-METHOD)."
-  `(setf (gethash ',name *modf-rewrites*)
-         (lambda (,expr)
-            ,@body )))
+  `(eval-when (:compile-toplevel :load-toplevel :execute)
+     (setf (gethash ',name *modf-rewrites*)
+           (lambda (,expr)
+             ,@body ))))
 
 ;; @\section{Defining Modf functions and methods}
 
@@ -71,8 +73,9 @@ term of the arguments of the place form in the MODF macro."
   `(progn
      (defun ,(intern (modf-name name) :modf) (,new-val ,@args)
        ,@body )
-     (setf (gethash ',name *modf-nth-arg*)
-           ,nth-arg )))
+     (eval-when (:compile-toplevel :load-toplevel :execute)
+       (setf (gethash ',name *modf-nth-arg*)
+             ,nth-arg ))))
 
 ;; <<>>=
 (defmacro define-modf-method (name nth-arg (new-val &rest args) &body body)
@@ -82,8 +85,9 @@ specialize on any of ARGS."
   `(progn
      (defmethod ,(intern (modf-name name) :modf) (,new-val ,@args)
        ,@body )
-     (setf (gethash ',name *modf-nth-arg*)
-           ,nth-arg )))
+     (eval-when (:compile-toplevel :load-toplevel :execute)
+       (setf (gethash ',name *modf-nth-arg*)
+             ,nth-arg ))))
 
 ;; @\section{The {\em modf} macro}
 
