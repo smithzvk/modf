@@ -52,6 +52,10 @@
 (define-modf-function nthcdr 2 (new-val nth obj)
   (replace-nthcdr nth obj new-val) )
 
+(define-modf-function last 1 (new-val obj)
+  (let ((len (length obj)))
+    (replace-nthcdr (- len 1) obj new-val)) )
+
 (define-modf-function subseq 1 (new-val seq start &optional (end (length seq)))
   (concatenate (type-of seq)
                (subseq seq 0 start)
