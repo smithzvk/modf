@@ -10,7 +10,8 @@ new data structures with specified changes in place."
                (:file "utils")
                (:file "modf")
                (:file "rewrite-rules")
-               (:file "basic"))
+               (:file "basic")
+               (:file "modf-def") )
   :serial t
   :depends-on (:alexandria :closer-mop) )
 
