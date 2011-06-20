@@ -13,6 +13,6 @@ new data structures with specified changes in place."
                (:file "basic")
                (:file "modf-def") )
   :serial t
-  :depends-on (:alexandria :closer-mop) )
+  :depends-on (:alexandria :closer-mop :iterate) )
 
 

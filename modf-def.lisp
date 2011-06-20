@@ -47,6 +47,20 @@
 (defmacro define-modf-for-struct-slots (structure-definition-form)
   `(progn ,@(apply #'modf-for-struct-slots-expander structure-definition-form)) )
 
+(defun group (source n)
+  (if (zerop n) (error "zero length"))
+  (labels ((rec (source acc)
+                (let ((rest (nthcdr n source)))
+                  (if (consp rest)
+                      (rec rest (cons (subseq source 0 n) acc))
+                      (nreverse (cons source acc)) ))))
+    (if source (rec source nil) nil) ))
+
+(defun group-by (list &rest counts)
+  (let ((ret list))
+    (dolist (cnt counts ret)
+      (setf ret (group ret cnt)) )))
+
 (defmacro defclass (name direct-superclasses direct-slots &rest options)
   "Define Modf expansions for class slot accessor and reader methods."
   ;; We need the names of all methods that access data in the object and what
@@ -59,7 +73,7 @@
                                             (lambda (x) (member
                                                     (first x)
                                                     '(:accessor :reader) ))
-                                            (tb:group-by (rest slot) 2) ))
+                                            (group-by (rest slot) 2) ))
                           (in :outer
                               (collecting
                                `(define-modf-method ,(second accessor) 1
@@ -81,7 +95,7 @@
                                         (lambda (x) (member
                                                 (first x)
                                                 '(:accessor :reader) ))
-                                        (tb:group-by (rest slot) 2) ))
+                                        (group-by (rest slot) 2) ))
                       (in :outer
                           (collecting
                            `(define-modf-method ,(second accessor) 1
