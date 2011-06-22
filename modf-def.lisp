@@ -45,7 +45,8 @@
                   new-struct )))))))
 
 (defmacro define-modf-for-struct-slots (structure-definition-form)
-  `(progn ,@(apply #'modf-for-struct-slots-expander structure-definition-form)) )
+  `(eval-when (:compile-toplevel :load-toplevel :execute)
+     ,@(apply #'modf-for-struct-slots-expander structure-definition-form) ))
 
 (defun group (source n)
   (if (zerop n) (error "zero length"))
@@ -65,7 +66,8 @@
   "Define Modf expansions for class slot accessor and reader methods."
   ;; We need the names of all methods that access data in the object and what
   ;; slot they are associated with.
-  `(progn (cl:defclass ,name ,direct-superclasses ,direct-slots ,@options)
+  `(progn
+     (cl:defclass ,name ,direct-superclasses ,direct-slots ,@options)
           ,@(iter :outer
                   (for slot in direct-slots)
                   (let ((slot-name (if (atom slot) slot (first slot))))
@@ -118,5 +120,6 @@
                               new-val) ))))))))
 
 (defmacro define-modf-for-class-slots (class-name-or-definition)
-  `(progn ,@(modf-for-class-slots-expander class-name-or-definition)) )
+  `(eval-when (:compile-toplevel :load-toplevel :execute)
+     ,@(modf-for-class-slots-expander class-name-or-definition) ))
 
