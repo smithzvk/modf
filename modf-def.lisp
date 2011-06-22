@@ -85,9 +85,9 @@
   ;; slot they are associated with.
   (if (consp class)
       ;; This is a definition form
-      (destructuring-bind (name direct-superclasses direct-slots &rest options)
+      (destructuring-bind (defclass name direct-superclasses direct-slots &rest options)
           class
-        (declare (ignore direct-superclasses options))
+        (declare (ignore defclass direct-superclasses options))
         (iter :outer
               (for slot in direct-slots)
               (let ((slot-name (if (atom slot) slot (first slot))))
