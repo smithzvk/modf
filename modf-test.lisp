@@ -1,8 +1,4 @@
 
-(defpackage :modf-test
-  (:use :cl :stefil :modf)
-  (:export :run-tests) )
-
 (in-package :modf-test)
 
 (in-root-suite)
@@ -23,17 +19,16 @@
 
 (deftest test-arrays ()
   (let ((arr #(1 2 3 4 5 6)))
-    (is (equal #(6 5 4 3 2 6) (modf (aref arr 0) 6
-                                    & (aref & 1) 5
-                                    & (aref & 2) 4
-                                    & (aref & 3) 3
-                                    & (aref & 4) 2 )))))
+    (is (iter (for el1 in-sequence #(6 5 4 3 2 6))
+          (for el2 in-sequence (modf (aref arr 0) 6
+                                     & (aref & 1) 5
+                                     & (aref & 2) 4
+                                     & (aref & 3) 3
+                                     & (aref & 4) 2 ))
+          (always (eql el1 el2)) ))))
 
-(defclass test-parent () ((a :accessor a-of :initarg :a)))
-(modf-def:defclass test-class1 (test-parent) ((b :accessor b-of :initarg :b)))
-(defclass test-class2 (test-parent) ((c :accessor c-of :initarg :c)))
-
-(modf-def:define-modf-for-class-slots (defclass test-class2 (test-parent) ((c :accessor c-of :initarg :c))))
+(modf-def:define-modf-for-class-slots (defclass test-class2 (test-parent)
+                                        ((c :accessor c-of :initarg :c))) )
 
 (deftest test-classes ()
   (let ((class1 (make-instance 'test-class1 :b 4 :a 7))
@@ -44,3 +39,20 @@
     ;; (is (eql 4 (a-of (modf (a-of class1) 4))))
     (is (eql 2 (b-of (modf (b-of class1) 2))))
     (is (eql 'hello (c-of (modf (c-of class2) 'hello)))) ))
+
+(modf-def:defstruct test-struct1 b)
+(defstruct test-struct2 c)
+
+(modf-def:define-modf-for-struct-slots (defstruct test-struct2 c))
+
+(deftest test-structs ()
+  (let ((s1 (make-test-struct1 :b 'b-slot))
+        (s2 (make-test-struct2 :c 'c-slot)) )
+    (is (eql 2 (test-struct1-b (modf (test-struct1-b s1) 2))))
+    (is (eql -1 (test-struct2-c (modf (test-struct2-c s2) -1)))) ))
+
+(deftest run-tests ()
+  (test-lists)
+  (test-arrays)
+  (test-structs)
+  (test-classes) )
