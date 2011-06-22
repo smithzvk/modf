@@ -20,8 +20,6 @@ then
  (format out "cmucl: Success~%") )
 (quit)
 EOF
- #    lisp -eval "(ql:quickload :modf-test)" -eval "(progn (modf-test:run-tests) (with-open-file (out #p\"test-resutls\" :if-exists :append :direction :output)
- # (format out \"cmucl: Success~%\") ) (quit))"
 fi
 
 if which ccl
