@@ -5,7 +5,7 @@ then
     sbcl <<EOF
 (ql:quickload :modf-test)
 (modf-test:run-tests)
-(with-open-file (out #p"test-resutls" :if-exists :supersede :direction :output)
+(with-open-file (out #p"test-results" :if-exists :supersede :direction :output)
  (format out "sbcl: Success~%") )
 EOF
 fi
@@ -16,7 +16,7 @@ then
     lisp <<EOF
 (ql:quickload :modf-test)
 (modf-test:run-tests)
-(with-open-file (out #p"test-resutls" :if-exists :append :direction :output)
+(with-open-file (out #p"test-results" :if-exists :append :direction :output)
  (format out "cmucl: Success~%") )
 (quit)
 EOF
@@ -27,7 +27,7 @@ then
     ccl <<EOF
 (ql:quickload :modf-test)
 (modf-test:run-tests)
-(with-open-file (out #p"test-resutls" :if-exists :append :direction :output)
+(with-open-file (out #p"test-results" :if-exists :append :direction :output)
  (format out "ccl: Success~%") )
 EOF
 fi
@@ -37,7 +37,7 @@ then
     ccl64 <<EOF
 (ql:quickload :modf-test)
 (modf-test:run-tests)
-(with-open-file (out #p"test-resutls" :if-exists :append :direction :output)
+(with-open-file (out #p"test-results" :if-exists :append :direction :output)
  (format out "ccl64: Success~%") )
 EOF
 fi
@@ -47,7 +47,7 @@ then
     clisp <<EOF
 (ql:quickload :modf-test)
 (modf-test:run-tests)
-(with-open-file (out #p"test-resutls" :if-exists :append :direction :output)
+(with-open-file (out #p"test-results" :if-exists :append :direction :output)
  (format out "clisp: Success~%"))
 EOF
 fi
@@ -57,7 +57,7 @@ then
     ecl <<EOF
 (ql:quickload :modf-test)
 (modf-test:run-tests)
-(with-open-file (out #p"test-resutls" :if-exists :append :direction :output)
+(with-open-file (out #p"test-results" :if-exists :append :direction :output)
  (format out "ecl: Success~%"))
 EOF
 fi
@@ -67,7 +67,7 @@ then
     abcl <<EOF
 (ql:quickload :modf-test)
 (modf-test:run-tests)
-(with-open-file (out #p"test-resutls" :if-exists :append :direction :output)
+(with-open-file (out #p"test-results" :if-exists :append :direction :output)
  (format out "abcl: Success~%"))
 EOF
 fi
