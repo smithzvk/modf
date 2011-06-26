@@ -106,28 +106,19 @@ specialize on any of ARGS."
 (defun container-arg-n (expr)
   (cond ((eql (car expr) 'cl:apply)
          (1+ (gethash (cadadr expr) *modf-nth-arg*)) )
-        ((eql (car expr) 'cl:funcall)
-         (1+ (gethash (cadadr expr) *modf-nth-arg*)) )
         (t (gethash (car expr) *modf-nth-arg*)) ))
 
 (defun modf-fn-defined? (expr)
   (cond ((eql (car expr) 'cl:apply)
          (fboundp (intern (modf-name (cadadr expr)) :modf)) )
-        ((eql (car expr) 'cl:funcall)
-         (fboundp (intern (modf-name (cadadr expr)) :modf)) )
         (t (fboundp (intern (modf-name (car expr)) :modf))) ))
 
 (defun expansions-defined? (expr)
-  (cond ((eql (car expr) 'cl:apply)
-         (gethash (cadadr expr) *modf-expansions*) )
-        ((eql (car expr) 'cl:funcall)
-         (gethash (cadadr expr) *modf-expansions*) )
-        (t (gethash (car expr) *modf-expansions*)) ))
+  (gethash (car expr) *modf-expansions*) )
 
 (defun accessor-in (expr)
   (case (car expr)
     (cl:apply (cadadr expr))
-    (cl:funcall (cadadr expr))
     (otherwise (car expr)) ))
 
 (defun apply-expression? (expr)
@@ -165,13 +156,6 @@ specialize on any of ARGS."
                                   (replace-nth
                                    (container-arg-n expr)
                                    expr form ))))
-                      ((funcall-expression? expr)
-                       `(funcall (function ,(intern (modf-name (cadadr expr)) :modf))
-                                 ,new-val
-                                 ,@(cddr
-                                    (replace-nth
-                                     (container-arg-n expr)
-                                     expr form ))))
                       (t
                        `(,(intern (modf-name (car expr)) :modf)
                          ,new-val

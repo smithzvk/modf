@@ -1,6 +1,9 @@
 
 (in-package :modf)
 
+(define-modf-rewrite funcall (expr)
+  (cons (cadadr expr) (cddr expr)) )
+
 (define-modf-rewrite caar (expr)
   `(car (car ,(second expr))) )
 (define-modf-rewrite cadr (expr)
