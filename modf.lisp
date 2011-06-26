@@ -103,6 +103,39 @@ specialize on any of ARGS."
 ;; order.  It recognizes one special form, modf-eval, which instructs it to not
 ;; try to invert the enclosed form and just evaluate it.
 
+(defun container-arg-n (expr)
+  (cond ((eql (car expr) 'cl:apply)
+         (1+ (gethash (cadadr expr) *modf-nth-arg*)) )
+        ((eql (car expr) 'cl:funcall)
+         (1+ (gethash (cadadr expr) *modf-nth-arg*)) )
+        (t (gethash (car expr) *modf-nth-arg*)) ))
+
+(defun modf-fn-defined? (expr)
+  (cond ((eql (car expr) 'cl:apply)
+         (fboundp (intern (modf-name (cadadr expr)) :modf)) )
+        ((eql (car expr) 'cl:funcall)
+         (fboundp (intern (modf-name (cadadr expr)) :modf)) )
+        (t (fboundp (intern (modf-name (car expr)) :modf))) ))
+
+(defun expansions-defined? (expr)
+  (cond ((eql (car expr) 'cl:apply)
+         (gethash (cadadr expr) *modf-expansions*) )
+        ((eql (car expr) 'cl:funcall)
+         (gethash (cadadr expr) *modf-expansions*) )
+        (t (gethash (car expr) *modf-expansions*)) ))
+
+(defun accessor-in (expr)
+  (case (car expr)
+    (cl:apply (cadadr expr))
+    (cl:funcall (cadadr expr))
+    (otherwise (car expr)) ))
+
+(defun apply-expression? (expr)
+  (eql (car expr) 'cl:apply) )
+
+(defun funcall-expression? (expr)
+  (eql (car expr) 'cl:funcall) )
+
 ;; <<>>=
 (defun modf-expand (new-val expr form)
   (cond ((atom expr)
@@ -112,44 +145,60 @@ specialize on any of ARGS."
         ((gethash (car expr) *modf-rewrites*)
          (modf-expand new-val (funcall (gethash (car expr) *modf-rewrites*) expr)
                       form ))
-        ((fboundp (intern (modf-name (car expr)) :modf))
+        ((modf-fn-defined? expr)
          (let ((enclosed-obj-sym (gensym)) )
            (modf-expand
             `(let ((,form
-                    ,(let ((enclosed-obj (nth (gethash (car expr) *modf-nth-arg*)
+                    ,(let ((enclosed-obj (nth (container-arg-n expr)
                                               expr )))
                        (let ((it (and (consp enclosed-obj)
-                                      (gethash (car enclosed-obj) *modf-nth-arg*) )))
+                                      (container-arg-n enclosed-obj) )))
                          (if it
                              (replace-nth it
                                           enclosed-obj
                                           enclosed-obj-sym )
                              enclosed-obj )))))
-               (,(intern (modf-name (car expr)) :modf)
-                 ,new-val
-                 ,@(cdr
-                    (replace-nth
-                     (gethash (car expr) *modf-nth-arg*)
-                     expr form ))))
-            (nth (gethash (car expr) *modf-nth-arg*) expr)
+               ,(cond ((apply-expression? expr)
+                       `(apply (function ,(intern (modf-name (cadadr expr)) :modf))
+                               ,new-val
+                               ,@(cddr
+                                  (replace-nth
+                                   (container-arg-n expr)
+                                   expr form ))))
+                      ((funcall-expression? expr)
+                       `(funcall (function ,(intern (modf-name (cadadr expr)) :modf))
+                                 ,new-val
+                                 ,@(cddr
+                                    (replace-nth
+                                     (container-arg-n expr)
+                                     expr form ))))
+                      (t
+                       `(,(intern (modf-name (car expr)) :modf)
+                         ,new-val
+                         ,@(cdr
+                            (replace-nth
+                             (container-arg-n expr)
+                             expr form ))))))
+            (nth (container-arg-n expr) expr)
             enclosed-obj-sym )))
-        ((gethash (car expr) *modf-expansions*)
+        ((expansions-defined? expr)
          (let ((enclosed-obj-sym (gensym)) )
            (multiple-value-bind (builder)
-               (funcall (gethash (car expr) *modf-expansions*) expr form new-val)
+               (funcall (gethash (accessor-in expr) *modf-expansions*)
+                        expr form new-val )
              (modf-expand
               `(let ((,form
-                      ,(let ((enclosed-obj (nth (gethash (car expr) *modf-nth-arg*)
+                      ,(let ((enclosed-obj (nth (container-arg-n expr)
                                                 expr )))
                          (let ((it (and (consp enclosed-obj)
-                                        (gethash (car enclosed-obj) *modf-nth-arg*) )))
+                                        (container-arg-n enclosed-obj) )))
                            (if it
                                (replace-nth it
                                             enclosed-obj
                                             enclosed-obj-sym )
                                enclosed-obj )))))
                  ,builder )
-              (nth (gethash (car expr) *modf-nth-arg*) expr)
+              (nth (container-arg-n expr) expr)
               enclosed-obj-sym ))))
         (t (error "Don't know how to handle \"~A\"" expr)) ))
 
