@@ -203,22 +203,22 @@ specialize on any of ARGS."
         (t (error "Don't know how to handle \"~A\"" expr)) ))
 
 ;; <<>>=
-(defmacro modf (place value &rest args)
+(defmacro modf (place value &rest more)
   "Make a new object \(which may use some of the old object) such that PLACE
 evaluates to VALUE.
 
-ARGS should have the form...
+MORE should have the form...
 
-ARGS : NIL
-     | (TEMPORARY-BINDING ANOTHER-MODF-PLACE ANOTHER-VALUE . ARGS)
+MORE : NIL
+     | (TEMPORARY-BINDING ANOTHER-MODF-PLACE ANOTHER-VALUE . MORE)
 
 Use it to specify a temporary binding for the new object created which will be
 used in the subsequence MODF-PLACE NEW-VALUE pairs until the end of the MODF
 form."
-  (if args
-      (destructuring-bind (next-symbol next-place next-value &rest next-args) args
+  (if more
+      (destructuring-bind (next-symbol next-place next-value &rest next-more) more
         `(let ((,next-symbol ,(modf-expand value place (gensym))))
-           (modf ,next-place ,next-value ,@next-args) ))
+           (modf ,next-place ,next-value ,@next-more) ))
       (modf-expand value place (gensym)) ))
 
 ;; <<>>=
