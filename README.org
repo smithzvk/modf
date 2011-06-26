@@ -9,7 +9,8 @@
 *Note*: If you are reading this on Github, at the time of writing, Github's Org
 file formatter appears to try to process examples and source listings is some
 way, so they look screwy.  Sorry about that, you'll have to look at the actual
-Org file source until true documentation is available.
+Org file source or view this document on [[http://directed-procrastination.blogspot.com/2011/05/introducting-modf-setf-for-functional.html][my blog]] until true documentation is
+available.
 
 =Setf= is such a wonderful macro.  Sometimes we forget.  It is one of the first
 things I find missing when I have to resort to an imperative language, which is
