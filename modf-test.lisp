@@ -71,10 +71,19 @@
 (deftest test-classes ()
   (let ((class1 (make-instance 'test-class1 :b 4 :a 7))
         (class2 (make-instance 'test-class2 :c t :a nil)))
-    (is (eql 0 (b-of (modf (slot-value class1 'b) 0))))
-    (is (eql 3 (a-of (modf (slot-value class1 'a) 3))))
+    #+closer-mop
+    (progn (is (eql 0 (b-of (modf (slot-value class1 'b) 0))))
+           (is (eql 3 (a-of (modf (slot-value class1 'a) 3)))) )
+    #-closer-mop
+    (with-expected-failures
+      (is (eql 0 (eval '(let ((class1 (make-instance 'test-class1 :b 4 :a 7)))
+                         (b-of (modf (slot-value class1 'b) 0)) ))))
+      (is (eql 3 (eval '(let ((class1 (make-instance 'test-class1 :b 4 :a 7)))
+                         (a-of (modf (slot-value class1 'a) 3)) )))))
     ;; This fails as it doesn't know how to handle it's parent.
-    ;; (is (eql 4 (a-of (modf (a-of class1) 4))))
+    (with-expected-failures
+      (is (eql 4 (eval '(let ((class1 (make-instance 'test-class1 :b 4 :a 7)))
+                         (a-of (modf (a-of class1) 4)) )))))
     (is (eql 2 (b-of (modf (b-of class1) 2))))
     (is (eql 'hello (c-of (modf (c-of class2) 'hello)))) ))
 

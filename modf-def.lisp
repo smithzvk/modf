@@ -104,6 +104,8 @@
                                 (new-val (obj ,name))
                               (modf (slot-value obj ',slot-name) new-val) )))))))
       ;; This must be a class object or name
+      ;; I actually don't this this works quite right, but whatever.
+      #+closer-mop
       (let ((class (find-class class)))
         (unless (closer-mop:class-finalized-p class)
           (error "Class ~S not finalized." class) )

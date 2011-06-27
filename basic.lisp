@@ -9,6 +9,7 @@
   (declare (ignore expr))
   `(cons ,new-val (cdr ,val)) )
 
+#+closer-mop
 (define-modf-expander slot-value 1 (expr val new-val)
   (with-gensyms (slot-name class slots new-instance slot)
     `(let* ((,slot-name ,(third expr))
