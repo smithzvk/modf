@@ -148,20 +148,22 @@ specialize on any of ARGS."
 ;; function that will build up the expansion as we talk the code tree, and
 ;; passes it to the next level of recursion.  The next level then wraps that
 ;; expansion.  Looking at the procedure above, we see the information such a
-;; function needs to work:
+;; function, called <<modf-expand>>, needs in order to work:
 
 ;; \begin{enumerate}
-;;  \item The previous level's expansion.  In the above example that is:
+;;  \item <<new-val>>: The value we want <<expr>> to evaluate to.
 
-;; (cons new-val (cdr tmp))
+;;  \item <<expr>>: The form we need to expand.
 
-;;  \item The data it will be operating on
-
-;;  \item
+;;  \item <<form>>: The symbol which it should use to bind the value of the
+;;  enclosed container argument in <<expr>>.  This is for optimization purposes.
 
 ;; \end{enumerate}
 
-;; To be completed later
+;; On the first call to <<modf-expand>>, the arguments should be the new value
+;; we want inserted, the full modf form to be expanded, and a gensym.  In our
+;; example above
+
 
 (defun container-arg-n (expr)
   (cond ((eql (car expr) 'cl:apply)
@@ -200,56 +202,42 @@ specialize on any of ARGS."
         ((gethash (car expr) *modf-rewrites*)
          (modf-expand new-val (funcall (gethash (car expr) *modf-rewrites*) expr)
                       form ))
-        ;; Then, see if an expansion is defined
-        ((expansions-defined? expr)
-         (let ((enclosed-obj-sym (gensym)) )
-           (multiple-value-bind (builder)
-               (funcall (gethash (accessor-in expr) *modf-expansions*)
-                        expr form new-val )
+        ;; Okay, we are going to call modf-expand
+        (t (let ((enclosed-obj-sym (gensym)) )
              (modf-expand
               `(let ((,form
-                      ,(let ((enclosed-obj (nth (container-arg-n expr)
-                                                expr )))
-                         (let ((it (and (expandable? enclosed-obj)
+                       ,(let* ((enclosed-obj (nth (container-arg-n expr)
+                                                  expr ))
+                               (it (and (expandable? enclosed-obj)
                                         (container-arg-n enclosed-obj) )))
-                           (if it
-                               (replace-nth it
-                                            enclosed-obj
-                                            enclosed-obj-sym )
-                               enclosed-obj )))))
-                 ,builder )
+                          (if it
+                              (replace-nth it
+                                           enclosed-obj
+                                           enclosed-obj-sym )
+                              enclosed-obj ))))
+                 ,(cond
+                    ;; Then, see if an expansion is defined
+                    ((expansions-defined? expr)
+                     ;; bind form to the enclosed object
+                     (funcall (gethash (accessor-in expr) *modf-expansions*)
+                              expr form new-val ))
+                    ;; Lastly, This must be a modf function or method
+                    ((apply-expression? expr)
+                     `(apply (function ,(intern (modf-name (cadadr expr)) :modf))
+                             ,new-val
+                             ,@(cddr
+                                (replace-nth
+                                 (container-arg-n expr)
+                                 expr form ))))
+                    (t
+                     `(,(intern (modf-name (car expr)) :modf)
+                       ,new-val
+                       ,@(cdr
+                          (replace-nth
+                           (container-arg-n expr)
+                           expr form ))))))
               (nth (container-arg-n expr) expr)
-              enclosed-obj-sym ))))
-        ;; Lastly, This must be a modf function or method
-        (t 
-         (let ((enclosed-obj-sym (gensym)) )
-           (modf-expand
-            `(let ((,form
-                    ,(let ((enclosed-obj (nth (container-arg-n expr)
-                                              expr )))
-                       (let ((it (and (expandable? enclosed-obj)
-                                      (container-arg-n enclosed-obj) )))
-                         (if it
-                             (replace-nth it
-                                          enclosed-obj
-                                          enclosed-obj-sym )
-                             enclosed-obj )))))
-               ,(cond ((apply-expression? expr)
-                       `(apply (function ,(intern (modf-name (cadadr expr)) :modf))
-                               ,new-val
-                               ,@(cddr
-                                  (replace-nth
-                                   (container-arg-n expr)
-                                   expr form ))))
-                      (t
-                       `(,(intern (modf-name (car expr)) :modf)
-                         ,new-val
-                         ,@(cdr
-                            (replace-nth
-                             (container-arg-n expr)
-                             expr form ))))))
-            (nth (container-arg-n expr) expr)
-            enclosed-obj-sym )))))
+              enclosed-obj-sym )))))
         ;; (t (error "Don't know how to handle \"~A\"" expr)) ))
 
 ;; <<>>=
