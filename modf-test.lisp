@@ -3,6 +3,9 @@
 
 (in-root-suite)
 
+(deftest modf-eval-test ()
+  (is (equal '(1 t 3 4) (modf (second (modf-eval '(1 2 3 4))) t))) )
+
 (defsuite* lisp-types)
 
 (deftest test-lists ()
@@ -99,6 +102,7 @@
     (is (eql -1 (test-struct2-c (modf (test-struct2-c s2) -1)))) ))
 
 (deftest run-tests ()
+  (modf-eval-test)
   (test-lists)
   (test-arrays)
   (test-structs)

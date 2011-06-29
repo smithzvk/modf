@@ -165,8 +165,8 @@ specialize on any of ARGS."
 
 (defun container-arg-n (expr)
   (cond ((eql (car expr) 'cl:apply)
-         (1+ (gethash (cadadr expr) *modf-nth-arg* 'no-nth-arg)) )
-        (t (gethash (car expr) *modf-nth-arg* 'no-nth-arg)) ))
+         (1+ (gethash (cadadr expr) *modf-nth-arg*)) )
+        (t (gethash (car expr) *modf-nth-arg*)) ))
 
 (defun modf-fn-defined? (expr)
   (cond ((eql (car expr) 'cl:apply)
@@ -194,9 +194,7 @@ specialize on any of ARGS."
 
 ;; <<>>=
 (defun modf-expand (new-val expr form)
-  (cond ((atom expr)
-         new-val )
-        ((eql (car expr) 'modf-eval)
+  (cond ((or (atom expr) (eql (car expr) 'modf-eval))
          new-val )
         ;; First, try rewrite rules
         ((gethash (car expr) *modf-rewrites*)
