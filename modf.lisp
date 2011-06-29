@@ -66,6 +66,12 @@ benefit, not the users, as these symbols belong to the MODF package."
          (package-name (symbol-package symbol))
          ":" (symbol-name symbol) ))
 
+;;<<>>=
+(defmacro modf-fn (symbol)
+  "Expand to the defined Modf function.  Basically, \(MODF-FN SYM) is the
+functional analog of #'\(SETF SYM)."
+  (symbol-function (modf-name symbol)) )
+
 ;; <<>>=
 (defmacro define-modf-function (name nth-arg (new-val &rest args) &body body)
   "Define a new modf function.  It inverts NAME forms by modifying the NTH-ARG
