@@ -3,8 +3,24 @@
 
 (in-root-suite)
 
+(deftest run-tests ()
+  (modf-eval-test)
+  (fsetf-tests)
+  (test-lists)
+  (test-arrays)
+  (test-structs)
+  (test-classes) )
+
 (deftest modf-eval-test ()
   (is (equal '(1 t 3 4) (modf (second (modf-eval '(1 2 3 4))) t))) )
+
+(deftest fsetf-tests ()
+  (let ((ima '((1 2 3) (4 5 6) (7 8 9))))
+    (fsetf (second ima) 'second)
+    (fsetf (second (first ima)) 'first-second
+           (third ima) 'third )
+    (is (equal '((1 first-second 3) second third)
+               ima )) ))
 
 (defsuite* lisp-types)
 
@@ -101,9 +117,3 @@
     (is (eql 2 (test-struct1-b (modf (test-struct1-b s1) 2))))
     (is (eql -1 (test-struct2-c (modf (test-struct2-c s2) -1)))) ))
 
-(deftest run-tests ()
-  (modf-eval-test)
-  (test-lists)
-  (test-arrays)
-  (test-structs)
-  (test-classes) )

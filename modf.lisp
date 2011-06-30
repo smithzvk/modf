@@ -259,6 +259,31 @@ form."
            (modf ,next-place ,next-value ,@next-more) ))
       (modf-expand value place (gensym)) ))
 
+(defun find-container (place)
+  (cond ((atom place)
+         place )
+        ((gethash (car place) *modf-rewrites*)
+         (find-container (funcall (gethash (car place) *modf-rewrites*) place)) )
+        ((not (expandable? place))
+         (error "You can only use FSETF if you are modfifying a container.  I don't have a place to set when given ~A." place) )
+        (t (let ((nth-arg (container-arg-n place)))
+             (unless nth-arg
+               (error "I can't figure out which argument is the container in ~A." place) )
+             (find-container (nth nth-arg place)) ))))
+
+;; <<>>=
+(defmacro fsetf (place value &rest more)
+  ;; First we need to find the "container" variable
+  (let ((container (find-container place)))
+    (with-gensyms (val-sym)
+      (if more
+          `(let ((,val-sym ,value))
+             (setf ,container (modf ,place ,val-sym))
+             (fsetf ,@more) )
+          `(let ((,val-sym ,value))
+             (setf ,container (modf ,place ,val-sym))
+             ,val-sym )))))
+
 ;; <<>>=
 (defmacro modf-eval (&rest args)
   `(progn ,@args) )

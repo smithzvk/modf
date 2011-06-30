@@ -5,6 +5,7 @@
   (:export #:modf
            #:modf-eval
            #:modf-fn
+           #:fsetf
            #:define-modf-rewrite
            #:define-modf-function
            #:define-modf-method
