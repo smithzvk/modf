@@ -1,6 +1,11 @@
 #!/bin/bash
 
-echo Test Results: > test-results
+FASL_CACHE=$HOME/.cache/common-lisp
+
+echo "Test results" > test-results
+
+# ensure we are building everything fresh
+find $FASL_CACHE -name \*modf -exec rm -r {} \;
 
 if which sbcl
 then
