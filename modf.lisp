@@ -167,8 +167,8 @@ specialize on any of ARGS."
 
 (defun container-arg-n (expr)
   (cond ((eql (car expr) 'cl:apply)
-         (1+ (gethash (cadadr expr) *modf-nth-arg*)) )
-        (t (gethash (car expr) *modf-nth-arg*)) ))
+         (1+ (gethash (cadadr expr) *modf-nth-arg* 1)) )
+        (t (gethash (car expr) *modf-nth-arg* 1)) ))
 
 (defun modf-fn-defined? (expr)
   (cond ((eql (car expr) 'cl:apply)
@@ -193,6 +193,55 @@ specialize on any of ARGS."
   (cond ((atom expr) nil)
         ((eql (first expr) 'modf-eval) nil)
         (t expr) ))
+
+(defun invert-function (func)
+  (if (fboundp (intern (modf-name func) :modf))
+      (symbol-function (intern (modf-name func) :modf))
+      (inverted-class-reader func) ))
+
+#+closer-mop
+(defun inverted-class-reader (func)
+  (lambda (new-val obj)
+    #-(or sbcl cmucl)
+    (let* ((class (class-of obj))
+           (slots (closer-mop:class-slots class))
+           (new-instance (make-instance class)))
+      (loop for slot in slots do
+               (cond ((member func (closer-mop:slot-definition-readers slot))
+                      (setf (slot-value new-instance
+                                        (closer-mop:slot-definition-name slot) )
+                            new-val ))
+                     ((slot-boundp obj (closer-mop:slot-definition-name slot))
+                      (setf (slot-value new-instance (closer-mop:slot-definition-name
+                                                      slot ))
+                            (slot-value obj (closer-mop:slot-definition-name slot)) ))
+                     (t (slot-makunbound new-instance
+                                         (closer-mop:slot-definition-name slot) ))))
+      new-instance )
+    #+(or sbcl cmucl)
+    (let* ((class (class-of obj))
+           (slot-groups (mapcar #'closer-mop:class-direct-slots
+                                (closer-mop:class-precedence-list class) ))
+           (new-instance (make-instance class))
+           slot-found )
+      (loop
+        for slots in slot-groups do
+           (loop
+             for slot in slots do
+                (cond ((member func (closer-mop:slot-definition-readers slot))
+                       (setf slot-found t
+                             (slot-value new-instance
+                                         (closer-mop:slot-definition-name slot) )
+                             new-val ))
+                      ((and (not slot-found)
+                            (slot-boundp obj (closer-mop:slot-definition-name slot)) )
+                       (setf (slot-value new-instance (closer-mop:slot-definition-name
+                                                       slot ))
+                             (slot-value obj (closer-mop:slot-definition-name slot)) ))
+                      ((not slot-found)
+                       (slot-makunbound new-instance
+                                        (closer-mop:slot-definition-name slot) )))))
+      new-instance )))
 
 ;; <<>>=
 (defun modf-expand (new-val expr form)
@@ -223,14 +272,14 @@ specialize on any of ARGS."
                               expr form new-val ))
                     ;; Lastly, This must be a modf function or method
                     ((apply-expression? expr)
-                     `(apply (function ,(intern (modf-name (cadadr expr)) :modf))
+                     `(apply ,(invert-function (cadadr expr))
                              ,new-val
                              ,@(cddr
                                 (replace-nth
                                  (container-arg-n expr)
                                  expr form ))))
                     (t
-                     `(,(intern (modf-name (car expr)) :modf)
+                     `(funcall ,(invert-function (car expr))
                        ,new-val
                        ,@(cdr
                           (replace-nth
@@ -238,7 +287,6 @@ specialize on any of ARGS."
                            expr form ))))))
               (nth (container-arg-n expr) expr)
               enclosed-obj-sym )))))
-        ;; (t (error "Don't know how to handle \"~A\"" expr)) ))
 
 ;; <<>>=
 (defmacro modf (place value &rest more)
@@ -268,7 +316,8 @@ form."
          (error "You can only use FSETF if you are modfifying a container.  I don't have a place to set when given ~A." place) )
         (t (let ((nth-arg (container-arg-n place)))
              (unless nth-arg
-               (error "I can't figure out which argument is the container in ~A." place) )
+               (error "I can't figure out which argument is the container in ~A."
+                      place ))
              (find-container (nth nth-arg place)) ))))
 
 ;; <<>>=
