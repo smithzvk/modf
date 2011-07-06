@@ -95,14 +95,13 @@
            (is (eql 3 (a-of (modf (slot-value class1 'a) 3)))) )
     #-closer-mop
     (with-expected-failures
-      (is (eql 0 (eval '(let ((class1 (make-instance 'test-class1 :b 4 :a 7)))
-                         (b-of (modf (slot-value class1 'b) 0)) ))))
-      (is (eql 3 (eval '(let ((class1 (make-instance 'test-class1 :b 4 :a 7)))
-                         (a-of (modf (slot-value class1 'a) 3)) )))))
-    ;; This fails as it doesn't know how to handle it's parent.
-    (with-expected-failures
-      (is (eql 4 (eval '(let ((class1 (make-instance 'test-class1 :b 4 :a 7)))
-                         (a-of (modf (a-of class1) 4)) )))))
+      (is (eql 0 (let ((class1 (make-instance 'test-class1 :b 4 :a 7)))
+                   (b-of (modf (slot-value class1 'b) 0)) )))
+      (is (eql 3 (let ((class1 (make-instance 'test-class1 :b 4 :a 7)))
+                   (a-of (modf (slot-value class1 'a) 3)) ))))
+    (is (eql 4 (let ((class1 (make-instance 'test-class1 :b 4 :a 7)))
+                 (a-of (modf (a-of class1) 4)) ))
+        "Failed to invert accessor function using heuristics." )
     (is (eql 2 (b-of (modf (b-of class1) 2))))
     (is (eql 'hello (c-of (modf (c-of class2) 'hello)))) ))
 

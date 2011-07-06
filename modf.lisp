@@ -194,99 +194,96 @@ specialize on any of ARGS."
         ((eql (first expr) 'modf-eval) nil)
         (t expr) ))
 
-(defun invert-function (func)
-  (if (fboundp (intern (modf-name func) :modf))
-      (symbol-function (intern (modf-name func) :modf))
-      (inverted-class-reader func) ))
+(defvar *accessor-heuristics* t
+  "This controls whether we should make educated guesses regarding inverting
+structure slot readers.  For strictly correct behavior, set this to nil.")
 
-#+closer-mop
-(defun inverted-class-reader (func)
-  (lambda (new-val obj)
-    #-(or sbcl cmucl)
-    (let* ((class (class-of obj))
-           (slots (closer-mop:class-slots class))
-           (new-instance (make-instance class)))
-      (loop for slot in slots do
-               (cond ((member func (closer-mop:slot-definition-readers slot))
-                      (setf (slot-value new-instance
-                                        (closer-mop:slot-definition-name slot) )
-                            new-val ))
-                     ((slot-boundp obj (closer-mop:slot-definition-name slot))
-                      (setf (slot-value new-instance (closer-mop:slot-definition-name
-                                                      slot ))
-                            (slot-value obj (closer-mop:slot-definition-name slot)) ))
-                     (t (slot-makunbound new-instance
-                                         (closer-mop:slot-definition-name slot) ))))
-      new-instance )
-    #+(or sbcl cmucl)
-    (let* ((class (class-of obj))
-           (slot-groups (mapcar #'closer-mop:class-direct-slots
-                                (closer-mop:class-precedence-list class) ))
-           (new-instance (make-instance class))
-           slot-found )
-      (loop
-        for slots in slot-groups do
-           (loop
-             for slot in slots do
-                (cond ((member func (closer-mop:slot-definition-readers slot))
-                       (setf slot-found t
-                             (slot-value new-instance
-                                         (closer-mop:slot-definition-name slot) )
-                             new-val ))
-                      ((and (not slot-found)
-                            (slot-boundp obj (closer-mop:slot-definition-name slot)) )
-                       (setf (slot-value new-instance (closer-mop:slot-definition-name
-                                                       slot ))
-                             (slot-value obj (closer-mop:slot-definition-name slot)) ))
-                      ((not slot-found)
-                       (slot-makunbound new-instance
-                                        (closer-mop:slot-definition-name slot) )))))
-      new-instance )))
+(defun late-invert (func new-val obj &rest args)
+  "This is a generic catch as much as you can function.  It attempts to identify
+class accessor functions, structure accessor functions, and provides late MODF
+defined functions \(i.e. you used MODF before using DEFINE-MODF-FUNCTION).
+
+All of this functionality is less than ideal efficiency wise, but working over
+efficiency any day, right?  If you want better performance, define all of you
+functions ahead of time."
+  (cond
+    ;; Check to see if the function is a defined modf function/method.
+    ((fboundp (intern (modf-name func) :modf))
+     (apply (symbol-function (intern (modf-name func) :modf))
+            new-val obj args ))
+    ;; Check to see if this is a generic function and there are no extra
+    ;; arguments (which means it might be a class slot accessor)
+    ((and *accessor-heuristics*
+          (not args)
+          (typep (symbol-function func) 'generic-function) )
+     (let ((new (copy-instance obj)))
+       (eval `(setf (,func ,new) ',new-val))
+       new ))
+    ;; Check to see if this is likely a structure accessor function
+    ((and *accessor-heuristics*
+          (not args)
+          (typep obj 'structure-object)
+          (let ((struct-name (symbol-name (type-of obj))))
+            (equal struct-name (subseq (symbol-name func) 0 (length struct-name))) ))
+     (let ((new-struct (copy-structure obj)))
+       ;; We use eval here because this setf form is hard to invert.  We could,
+       ;; in principle, using GET-SETF-EXPANSION.
+       (eval `(setf (,func ,new-struct) ',new-val))
+       new-struct ))))
 
 ;; <<>>=
-(defun modf-expand (new-val expr form)
+(defun modf-expand (new-val expr enclosed-obj-sym)
   (cond ((or (atom expr) (eql (car expr) 'modf-eval))
-         new-val )
+         `(let ((,enclosed-obj-sym ,expr))
+            ,new-val ))
         ;; First, try rewrite rules
         ((gethash (car expr) *modf-rewrites*)
          (modf-expand new-val (funcall (gethash (car expr) *modf-rewrites*) expr)
-                      form ))
+                      enclosed-obj-sym ))
         ;; Okay, we are going to call modf-expand
-        (t (let ((enclosed-obj-sym (gensym)) )
+        (t (let* ((obj-sym (gensym))
+                  (new-val (if enclosed-obj-sym
+                               `(let ((,enclosed-obj-sym
+                                        ,(replace-nth (container-arg-n expr) expr
+                                                      obj-sym )))
+                                  ,new-val )
+                               new-val )))
              (modf-expand
-              `(let ((,form
-                       ,(let* ((enclosed-obj (nth (container-arg-n expr)
-                                                  expr ))
-                               (it (and (expandable? enclosed-obj)
-                                        (container-arg-n enclosed-obj) )))
-                          (if it
-                              (replace-nth it
-                                           enclosed-obj
-                                           enclosed-obj-sym )
-                              enclosed-obj ))))
-                 ,(cond
-                    ;; Then, see if an expansion is defined
-                    ((expansions-defined? expr)
-                     ;; bind form to the enclosed object
-                     (funcall (gethash (accessor-in expr) *modf-expansions*)
-                              expr form new-val ))
-                    ;; Lastly, This must be a modf function or method
-                    ((apply-expression? expr)
-                     `(apply ,(invert-function (cadadr expr))
+              (cond
+                ;; Then, see if an expansion is defined
+                ((expansions-defined? expr)
+                 ;; bind form to the enclosed object
+                 (funcall (gethash (accessor-in expr) *modf-expansions*)
+                          expr obj-sym new-val ))
+                ;; Lastly, This must be a modf function or method
+                ((apply-expression? expr)
+                 (if (modf-fn-defined? expr)
+                     `(apply (modf-fn ,(cadadr expr))
                              ,new-val
                              ,@(cddr
                                 (replace-nth
                                  (container-arg-n expr)
-                                 expr form ))))
-                    (t
-                     `(funcall ,(invert-function (car expr))
-                       ,new-val
-                       ,@(cdr
-                          (replace-nth
-                           (container-arg-n expr)
-                           expr form ))))))
+                                 expr obj-sym )))
+                     `(apply #'late-invert ',(cadadr expr) ,new-val
+                             ,@(cddr
+                                (replace-nth
+                                 (container-arg-n expr)
+                                 expr obj-sym )))))
+                (t
+                 (if (modf-fn-defined? expr)
+                     `(funcall (modf-fn ,(car expr))
+                               ,new-val
+                               ,@(cdr
+                                  (replace-nth
+                                   (container-arg-n expr)
+                                   expr obj-sym )))
+                     `(late-invert ',(car expr) ,new-val
+                     ,@(cdr
+                        (replace-nth
+                         (container-arg-n expr)
+                         expr obj-sym ))))))
               (nth (container-arg-n expr) expr)
-              enclosed-obj-sym )))))
+              obj-sym )))))
 
 ;; <<>>=
 (defmacro modf (place value &rest more)
@@ -303,9 +300,9 @@ used in the subsequence MODF-PLACE NEW-VALUE pairs until the end of the MODF
 form."
   (if more
       (destructuring-bind (next-symbol next-place next-value &rest next-more) more
-        `(let ((,next-symbol ,(modf-expand value place (gensym))))
+        `(let ((,next-symbol ,(modf-expand value place nil)))
            (modf ,next-place ,next-value ,@next-more) ))
-      (modf-expand value place (gensym)) ))
+      (modf-expand value place nil) ))
 
 (defun find-container (place)
   (cond ((atom place)
