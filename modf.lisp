@@ -213,12 +213,9 @@ functions ahead of time."
             new-val obj args ))
     ;; Check to see if this is a generic function and there are no extra
     ;; arguments (which means it might be a class slot accessor)
-    ((and *accessor-heuristics*
-          (not args)
+    ((and (not args)
           (typep (symbol-function func) 'generic-function) )
-     (let ((new (copy-instance obj)))
-       (eval `(setf (,func ,new) ',new-val))
-       new ))
+     (late-class-reader-inverter func new-val obj) )
     ;; Check to see if this is likely a structure accessor function
     ((and *accessor-heuristics*
           (not args)
@@ -230,6 +227,48 @@ functions ahead of time."
        ;; in principle, using GET-SETF-EXPANSION.
        (eval `(setf (,func ,new-struct) ',new-val))
        new-struct ))))
+
+(defun late-class-reader-inverter (func new-val obj)
+  #-(or sbcl cmucl)
+  (let* ((class (class-of obj))
+         (slots (closer-mop:class-slots class))
+         (new-instance (make-instance class)))
+    (loop for slot in slots do
+             (cond ((member func (closer-mop:slot-definition-readers slot))
+                    (setf (slot-value new-instance
+                                      (closer-mop:slot-definition-name slot) )
+                          new-val ))
+                   ((slot-boundp obj (closer-mop:slot-definition-name slot))
+                    (setf (slot-value new-instance (closer-mop:slot-definition-name
+                                                    slot ))
+                          (slot-value obj (closer-mop:slot-definition-name slot)) ))
+                   (t (slot-makunbound new-instance
+                                       (closer-mop:slot-definition-name slot) ))))
+    new-instance )
+  #+(or sbcl cmucl)
+  (let* ((class (class-of obj))
+         (slot-groups (mapcar #'closer-mop:class-direct-slots
+                              (closer-mop:class-precedence-list class) ))
+         (new-instance (make-instance class))
+         slot-found )
+    (loop
+      for slots in slot-groups do
+         (loop
+           for slot in slots do
+              (cond ((member func (closer-mop:slot-definition-readers slot))
+                     (setf slot-found t
+                           (slot-value new-instance
+                                       (closer-mop:slot-definition-name slot) )
+                           new-val ))
+                    ((and (not slot-found)
+                          (slot-boundp obj (closer-mop:slot-definition-name slot)) )
+                     (setf (slot-value new-instance (closer-mop:slot-definition-name
+                                                     slot ))
+                           (slot-value obj (closer-mop:slot-definition-name slot)) ))
+                    ((not slot-found)
+                     (slot-makunbound new-instance
+                                      (closer-mop:slot-definition-name slot) )))))
+    new-instance ))
 
 ;; <<>>=
 (defun modf-expand (new-val expr enclosed-obj-sym)
@@ -278,10 +317,10 @@ functions ahead of time."
                                    (container-arg-n expr)
                                    expr obj-sym )))
                      `(late-invert ',(car expr) ,new-val
-                     ,@(cdr
-                        (replace-nth
-                         (container-arg-n expr)
-                         expr obj-sym ))))))
+                                   ,@(cdr
+                                      (replace-nth
+                                       (container-arg-n expr)
+                                       expr obj-sym ))))))
               (nth (container-arg-n expr) expr)
               obj-sym )))))
 
