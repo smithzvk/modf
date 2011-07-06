@@ -10,23 +10,26 @@
   `(cons ,new-val (cdr ,val)) )
 
 #+closer-mop
+(defun copy-instance (obj)
+  (let* ((class (class-of obj))
+         (slots (closer-mop:class-slots class))
+         (new-instance (make-instance class)))
+    (loop for slot in slots do
+             (cond ((slot-boundp obj (closer-mop:slot-definition-name slot))
+                    (setf (slot-value new-instance (closer-mop:slot-definition-name
+                                                    slot ))
+                          (slot-value obj (closer-mop:slot-definition-name slot)) ))
+                   (t (slot-makunbound new-instance
+                                       (closer-mop:slot-definition-name slot) ))))
+    new-instance ))
+#-closer-mop
+(defun copy-instance (obj)
+  (error "Sorry, I need Closer-MOP to Modf classes.") )
+
 (define-modf-expander slot-value 1 (expr val new-val)
-  (with-gensyms (slot-name class slots new-instance slot)
-    `(let* ((,slot-name ,(third expr))
-            (,class (class-of ,val))
-            (,slots (closer-mop:class-slots ,class))
-            (,new-instance (make-instance ,class)))
-       (loop for ,slot in ,slots do
-         (cond ((eql ,slot-name (closer-mop:slot-definition-name ,slot))
-                (setf (slot-value ,new-instance ,slot-name)
-                      ,new-val ))
-               ((slot-boundp ,val (closer-mop:slot-definition-name ,slot))
-                (setf (slot-value ,new-instance (closer-mop:slot-definition-name
-                                                 ,slot ))
-                      (slot-value ,val (closer-mop:slot-definition-name ,slot)) ))
-               (t (slot-makunbound ,new-instance
-                                   (closer-mop:slot-definition-name ,slot) ))))
-       ,new-instance )))
+  `(let ((new (copy-instance ,val)))
+     (setf (slot-value new ,(third expr)) ,new-val)
+     new ))
 
 (define-modf-method pathname-directory 1 (new-val path)
   (make-pathname :directory new-val :defaults path) )
