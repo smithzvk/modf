@@ -229,7 +229,9 @@ functions ahead of time."
        new-struct ))))
 
 (defun late-class-reader-inverter (func new-val obj)
-  #-(or sbcl cmucl)
+  #+ecl
+  ;; ECL seems to work a bit more intuitively.  Effective slots know their
+  ;; readers.
   (let* ((class (class-of obj))
          (slots (closer-mop:class-slots class))
          (new-instance (make-instance class)))
@@ -245,7 +247,7 @@ functions ahead of time."
                    (t (slot-makunbound new-instance
                                        (closer-mop:slot-definition-name slot) ))))
     new-instance )
-  #+(or sbcl cmucl)
+  #-ecl
   (let* ((class (class-of obj))
          (slot-groups (mapcar #'closer-mop:class-direct-slots
                               (closer-mop:class-precedence-list class) ))
