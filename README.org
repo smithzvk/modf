@@ -1,334 +1,167 @@
-#+TITLE:     Introducing Modf: Setf for functional programming
-#+AUTHOR:    Zach Kost-Smith
-#+EMAIL:     zachkostsmith@gmail.com
-#+LANGUAGE:  en
-#+OPTIONS:   H:3 num:nil toc:nil \n:nil @:t ::t |:t ^:t -:t f:t *:tl creator:nil
-#+OPTIONS:   TeX:t LaTeX:nil skip:nil d:nil tags:not-in-toc author:nil timestamp:nil
-#+INFOJS_OPT: view:nil toc:nil ltoc:t mouse:underline buttons:0 path:http://orgmode.org/org-info.js
 
-*Note*: If you are reading this on Github, at the time of writing, Github's Org
-file formatter appears to try to process examples and source listings is some
-way, so they look screwy.  Sorry about that, you'll have to look at the actual
-Org file source or view this document on [[http://directed-procrastination.blogspot.com/2011/05/introducting-modf-setf-for-functional.html][my blog]] until true documentation is
-available.
+* Modf
 
-=Setf= is such a wonderful macro.  Sometimes we forget.  It is one of the first
-things I find missing when I have to resort to an imperative language, which is
-exactly the place where you want to use it the most.  But there seems to be a
-shortcoming in Common Lisp when it comes to functional programming.  What I mean
-is, it is incredibly easy to mutate state with =setf=, but when we want to use
-data in a functional way, it becomes much more cumbersome to do what is needed.
-For example...
+Modf is a =setf= like macro for functional programming.  Like =setf=, Modf knows
+how to modify many Lisp objects such that a place will evaluate to a new value
+of your choosing.  Unlike =setf=, Modf doesn't mutate the data in anyway.
+Instead it creates a new object with the requested changes in place.  See [[http://directed-procrastination.blogspot.com/2011/05/introducting-modf-setf-for-functional.html][my
+blog]] post on Modf for a bit more info.  Be warned though, while the gist is
+definitely there, it has become a bit out of date as Modf has progressed.
+
+** What does Modf do?
+
+To give a pathologic example, Modf allows you to change =t= to =nil= in the
+following expression easily.
 
 #+BEGIN_SRC lisp
-;; Let's try something in a non-fuctional way
-(let ((list '(1 2 3 4 5 6 7)))
-  ...
-  ;; Change the 5th element in the list to t
-  (setf (fifth list) t)
-  ... )
-
-;; Let's try it functionally
-(let ((list '(1 2 3 4 5 6 7)))
-  ...
-  ;; Change the 5th element in the list to t
-  (labels
-      ((replace-nth (nth list new-val)
-         (if (> nth 0)
-             (cons (car list) (replace-nth (- nth 1) (cdr list) new-val))
-             (cons new-val (cdr list)) )))
-    (setf list (replace-nth 4 list t)) )
-  ... )
+  (defparameter *crazy* '(1 #(a (2 #(b (3 #(c (4 t))))))))
+  ==> *CRAZY*
+  
+  ;; Change that last value with Modf
+  (modf
+   (cadr (aref (cadr (aref (cadr (aref (cadr *crazy*) 1)) 1)) 1))
+   nil )
+  ==> (1 #(A (2 #(B (3 #(C (4 NIL)))))))
+  
+  ;; But note that the original data is unchanged
+  ,*crazy*
+  ==> (1 #(A (2 #(B (3 #(C (4 T)))))))
+  
+  ;; Note that the Modf form looks a lot like how you would use setf
+  (setf
+   (cadr (aref (cadr (aref (cadr (aref (cadr *crazy*) 1)) 1)) 1))
+   nil )
+  ==> NIL
+  
+  ,*crazy*
+  ==> (1 #(A (2 #(B (3 #(C (4 NIL)))))))
+  
+  ;; What does Modf gain us, take a look.  Look it over.  It's all necessary
+  (macroexpand
+   '(modf
+     (cadr (aref (cadr (aref (cadr (aref (cadr *crazy*) 1)) 1)) 1))
+     nil ))
+  
+  ==>
+  (LET ((#:G1556 *CRAZY*))
+    (CONS (CAR #:G1556)
+          (LET ((#:G1555 (CDR #:G1556)))
+            (CONS
+             (LET ((#:G1554 (CAR #:G1555)))
+               (FUNCALL (MODF-FN AREF)
+                        (LET ((#:G1553 (AREF #:G1554 1)))
+                          (CONS (CAR #:G1553)
+                                (LET ((#:G1552 (CDR #:G1553)))
+                                  (CONS
+                                   (LET ((#:G1551 (CAR #:G1552)))
+                                     (FUNCALL (MODF-FN AREF)
+                                              (LET ((#:G1550 (AREF #:G1551 1)))
+                                                (CONS (CAR #:G1550)
+                                                      (LET ((#:G1549
+                                                              (CDR #:G1550)))
+                                                        (CONS
+                                                         (LET ((#:G1548
+                                                                 (CAR #:G1549)))
+                                                           (FUNCALL
+                                                            (MODF-FN AREF)
+                                                            (LET ((#:G1547
+                                                                    (AREF #:G1548
+                                                                          1)))
+                                                              (CONS (CAR #:G1547)
+                                                                    (LET ((#:G1546
+                                                                            (CDR
+                                                                             #:G1547)))
+                                                                      (CONS NIL
+                                                                            (CDR
+                                                                             #:G1546)))))
+                                                            #:G1548 1))
+                                                         (CDR #:G1549)))))
+                                              #:G1551 1))
+                                   (CDR #:G1552)))))
+                        #:G1554 1))
+             (CDR #:G1555)))))
 #+END_SRC
 
-The cleanest way I could think to do this (barring what will follow) is to
-define a function that would do this for me.  There is nothing wrong with that,
-and many will state that this general function should be placed in a toolbox so
-it can be used in the future saving me such effort from now on.
+The aim is to make this work for any Lisp object, including CLOS objects and
+structures.
 
-I find, however, that such functions are defined and often never used again,
-not because I don't need them but because I forget the work I've done in the
-past.  (Not to mention that the function above isn't nearly general enough.
-What happens if you want to replace the =cdr= of the n^{th} element, or the
-=cadar=?).
+** How does Modf work?
 
-If you've read Graham's /On Lisp/, there are probably a couple of functions
-(=ttrav=, =trec=) floating around in your head that might serve our purposes
-here.  I believe that Graham would state that making functions like the one
-above easier to write alleviates the problem.  I find that using such "one off"
-methods still uses a bit too much mental overhead when coding.
+It works similar to the way =setf= works.  With =setf= expansions are defined
+that take some kind of accessor function and turn it into a function that sets
+the value at that place.  In Modf, expansions are defined that turn an accessor
+function into a function that builds a new object the specified change in place.
 
-Now, look at what =setf= does for us.  It hides functions like =rplaca= and
-=rplacd= which no sane individual should spend grey matter on.  =Setf= knows how
-to invert =(car x)= and =(cdr x)= into the proper mutating "function".  Wouldn't
-it be nice if we had a functionality like =setf= that keeps track of and inserts
-the proper functional manipulation code.  To this end I have created =modf=.
+** Where does Modf work?
 
-=Modf= is a macro that behaves like =setf=, except it returns a new object with
-the requested properties rather than makes the changes in place.  It changes
-functional example from above into...
+Modf strives to be portable and work everywhere as long as Modf expansion
+functions are defined.  See the section /Defining your own Modf Expansions/.  I
+aim to cover all primitive data types in CL.  As of now, it should work in any
+Lisp when working with lists, arrays, hash tables, and, given you have defined
+your Modf expanders for your data types, class instances and structs.
 
-#+BEGIN_SRC lisp
-;; Let's try it functionally
-(let ((list '(1 2 3 4 5 6 7)))
-  ...
-  ;; Change the 5th element in the list to t
-  (modf (nth 4 list) t)
-  ... )
-#+END_SRC
+For usability purposes, however, a lot of effort has gone into making Modf work
+for data even if Modf expansions haven't been defined.  This is a very difficult
+to impossible task.  For one, we have no way of knowing which argument holds the
+actual data structure.  If no expansion is defined, we assume it is at the first
+argument of the place (adjusting for =apply= statements).
 
-Right, that's all well and good, but that isn't nearly the most use you can get
-out of this.  Let's say we were using the FSet =seq= data structure to hold a
-Sudoku board.  We might use a =seq= of =seq= structures to represent our board.
-If we want to set a number on the board, we would do this...
+In the case of class accessor methods without defined Modf expansions,
+Closer-Mop is used to examine the data at run time and produce the functional
+changes.  For structures we don't even have Closer-Mop to help us and a series
+of heuristics are used at run time to try to invert accessor functions (again,
+only if no Modf expander has been defined).
 
-#+BEGIN_SRC lisp
-(let ((board (make-board)))
-  ;; Set element (4,3) to a 2
-  (modf (fset:@ (fset:@ board 4) 3) 2) )
-#+END_SRC
+If Modf doesn't work for something common out of the box, feel free to post a
+bug report.  It would be even better if you can think of a way figure out what
+to do.
 
-...instead of like this...
+Modf is tested regularly on the major Libre Software implementations (SBCL,
+CMUCL, CCL, CLISP, ECL).
 
-#+BEGIN_SRC lisp
-(let ((board (make-board)))
-  ;; Set element (4,3) to a 2
-  (fset:with board 4 (fset:with (fset:@ board 4) 3 2)) )
-#+END_SRC
+** Defining your own Modf expansions
 
-...which is considerably more convoluted.  But to really nail this home,
-consider we have a mess like =crazy-datastructure= which is a mixture of
-classes, arrays, lists, and strings...
+Modf works my defining various expansion constructs.  These expansion constructs
+can be in the form of:
 
-#+BEGIN_SRC lisp
-(defclass test-class ()
-  ((slot1 :initform 1 :initarg :slot1)
-   (slot2 :initform 2 :initarg :slot2)
-   (array :initform #() :initarg :array) ))
+ 1. *Rewrite Rules* via =define-modf-rewrite=, a simple macro like facility that
+    rewrites the place you want to =modf= into something simpler.  Think =(cadr
+    x)= -> =(car (cdr x))=.
 
-(defparameter crazy-datastructure
-  (list 1 (make-instance 'test-class :array (vector 'a 'b "hello"))
-        3 4 ))
+ 2. *Expanders* via =define-modf-expander=, a more general expansion mechanism
+    where you define a function that is given the place to be modded, the
+    current value of that place, and the new value it should be modded to.
 
-(defmethod print-object ((obj test-class) str)
-  (with-slots (slot1 slot2 array) obj
-    (format str "#<TEST-CLASS: SLOT1: ~S, SLOT2: ~S, ARRAY: ~S>"
-            slot1 slot2 array )))
-#+END_SRC
+ 3. *Modf functions and Methods* via =define-modf-function= and
+    =define-modf-method=, which you should think of as a way to define =(setf
+    fn)= like functions for Modf.
 
-#+BEGIN_EXAMPLE
-CL-USER> (subseq (aref (slot-value (second crazy-datastructure) 'array) 2) 1 3)
-"el"
-#+END_EXAMPLE
+In principle, the last construct alone is enough to do anything you want.  The
+others are included for your convenience and with thoughts of compiler
+optimization on the in place expansions performed by expanders.
 
-Let's say we want to modify that substring to "EL" instead.
+For expanders and Modf functions/methods, you need to specify which argument
+actually holds the data that is being modified.  This is given as an extra
+argument after the name.
 
-#+BEGIN_EXAMPLE
-CL-USER> 
-(modf (subseq (aref (slot-value (second crazy-datastructure) 'array) 2) 1 3) "EL")
-(1 #<TEST-CLASS: SLOT1: 1, SLOT2: 2, ARRAY: #(A B "hELlo")> 3 4)
+** Known issues
 
-CL-USER> 
-;; And the original CRAZY-DATASTRUCTURE remains unchanged
-crazy-datastructure
-(1 #<TEST-CLASS: SLOT1: 1, SLOT2: 2, ARRAY: #(A B "hello")> 3 4)
+ 1. Tons of stuff with ABCL.  It actually works for most things in ABCL, but I
+    don't have the patience to get the test suite running.
 
-CL-USER> 
-;; If we compare to the SETF form
-(setf (subseq (aref (slot-value (second crazy-datastructure) 'array) 2) 1 3) "EL")
-"EL"
+ 2. Perhaps issues with order of evaluation.  I haven't gone through a thorough
+    audit of this yet.
 
-CL-USER> crazy-datastructure
-(1 #<TEST-CLASS: SLOT1: 1, SLOT2: 2, ARRAY: #(A B "hELlo")> 3 4)
-#+END_EXAMPLE
+** Documentation
 
-If we consider how we might perform this functional modification without
-=modf=...
+Working on it.  This is supposed to be a literate program, but the comments in
+the source are chicken scratch.
 
-#+BEGIN_SRC lisp
-CL-USER> 
-(cons (car crazy-datastructure)
-      (cons 
-       (make-instance 'test-class
-                      :slot1 (slot-value (second crazy-datastructure) 'slot1)
-                      :slot2 (slot-value (second crazy-datastructure) 'slot2)
-                      :array (vector
-                              (aref (slot-value (second crazy-datastructure)
-                                                'array) 0)
-                              (aref (slot-value (second crazy-datastructure)
-                                                'array) 1)
-                              (concatenate 'string
-                                           (subseq 
-                                            (aref (slot-value
-                                                   (second crazy-datastructure)
-                                                   'array) 2)
-                                            0 1)
-                                           "EL"
-                                           (subseq 
-                                            (aref (slot-value
-                                                   (second crazy-datastructure)
-                                                   'array) 2)
-                                            3))))
-       (cddr crazy-datastructure) ))
-#+END_SRC
+** Author
 
-Here we made it simple to functionally modify parts of a data structure that
-includes a string nested in an array nested in a class nested in a list.  =Modf=
-acts as a shorthand for complicated functional manipulations.  If you examine
-the macro expansion of the =modf= form, you will see something very similar to
-the hand written code to change the deeply nested substring.
+Zach Kost-Smith
+<zachkostsmith@gmail.com>
 
-** How it works
+** License
 
-Really, when it comes down to it, =modf= is a simpler functionality than =setf=
-because any modifier can be represented as a function.  This isn't true with
-=setf=.  Consider...
-
-#+BEGIN_SRC lisp
-(let ((x 5))
-  (setf x 5) )
-#+END_SRC
-
-...there is no function you can call with arguments =x= and =5= which has the
-effect of setting the lexical variable =x= to =5= in this scope.  This isn't
-true of functional changes as we are returning the modified value.  That is not
-to say that this didn't turn out to be a tricky macro to write.  This is due to
-the fact that the construction mechanism has to be in the reverse order of the
-access forms encountered during the expansion.
-
-You can define macro like "rewrites" with =define-modf-rewrite= that translate
-access code into other access code that =modf= knows how to deal with
-(e.g. =(cadr x) -> (car (cdr x))=).
-
-You define expansion functions similar =(defun (setf func) ...)= and =(defmethod
-(setf func) ...)= with =define-modf-function= and =define-modf-method=,
-respectively.
-
-You define expansions based on the lexical structure of the code via
-=define-modf-expander= (this is analogous in some sense to
-=define-setf-expander=).  This allows you to invert forms like =(car x)= to the
-builder code =(cons new-value (cdr x))=.  These functions return new code that
-will replace the old code that was passed as an argument to the function.
-
-There is a big difference between these functions and the =setf= equivalents.
-You need to specify which argument in the form contains the object that is being
-modified.  This is taken as an extra argument right after the name of the
-expander.
-
-In principle there is no need to have =define-modf-expander=, since any modifier
-can be expressed as a function.  It might be beneficial to "open code" certain
-=modf= expansions as it will give the compiler a crack at optimizing the
-resultant code.
-
-There is one special form in the "=modf= syntax," =modf-eval=.  =Modf-eval=
-marks sections of code that =modf= shouldn't try to invert, and should just
-leave for the Lisp system to evaluate or compile as it will (the same way =modf=
-treats any atom it encounters).  This is important if so you can have code like
-this...
-
-#+BEGIN_SRC lisp
-(modf (second (modf-eval '(1 2 3 4 5))) 5)
-#+END_SRC
-
-Without =modf-eval=, =modf= would try to invert the form =(quote (1 2 3 4 5))=,
-rather than modify the list =(1 2 3 4 5)=.  You can even go so far as...
-
-#+BEGIN_SRC lisp
-(modf (second (modf-eval
-               (modf (third (modf-eval '(1 2 3 4 5))) 10) )) 5)
-#+END_SRC
-
-Which allows you to chain =modf= statements.  This can get a little clunky, so
-to ease the reuse of previously calculated results, you can use extra =modf=
-arguments to reuse previous results.
-
-#+BEGIN_SRC lisp
-(modf (third (modf-eval '(1 2 3 4 5))) 10
-      last-result
-      (second last-result) 5 )
-== (let ((last-result (modf (third (modf-eval '(1 2 3 4 5))))))
-      (modf (second last-result) 5) )
-#+END_SRC
-
-You can even use previous results in non-trivial ways...
-
-#+BEGIN_SRC lisp
-(let ((lst '(1 2 3 4 5)))
-  (modf (third lst) 10
-        result-a
-        (second lst) 5
-        result-b
-        (fourth lst) (list result-a result-b) ))
-==> (1 2 3 ((1 2 10 4 5) (1 5 3 4 5)) 5)
-#+END_SRC
-
-** An Example
-
-As an example of how to use this, here is how you might set up =modf= to work
-with an affine matrix data structure based on FSet seqs.
-
-#+BEGIN_SRC lisp
-;;; First we define how our data structure like we always would.
-(defclass fset-matrix ()
-  ((dims :initarg :dims :accessor mat-dimensions :accessor dims-of)
-   (seq :initarg :seq :accessor seq :accessor seq-of)
-   (a :initarg :a :initform #(1 0 0 1) :type (array integer (4)) :accessor a-of)
-   (b :initarg :b :initform #(0 0) :type (array integer (2)) :accessor b-of) ))
-
-(defun make-fset-matrix (dims &key (initial-element 0))
-  (let ((arr (make-instance 'fset-matrix
-                            :seq (fset:with (fset:empty-seq initial-element)
-                                            (apply #'* dims) initial-element )
-                            :dims dims )))
-    arr ))
-
-(defun fref (mat &rest idx)
-  (destructuring-bind (i j) idx
-    (aif2 (fset:@ (seq-of mat)
-                  (+ (* (car (dims-of mat))
-                        (+ (* (aref (a-of mat) 0) i)
-                           (* (aref (a-of mat) 1) j)
-                           (aref (b-of mat) 0) ))
-                     (+ (* (aref (a-of mat) 2) i)
-                        (* (aref (a-of mat) 3) j)
-                        (aref (b-of mat) 1) )))
-          it
-          (error "Indicies ~A out of bounds ~A." idx (dims-of mat)) )))
-
-(defun (setf fref) (val mat &rest idx)
-  (setf (seq-of mat)
-        (destructuring-bind (i j) idx
-          (fset:with (seq-of mat)
-                     (+ (* (car (dims-of mat))
-                           (+ (* (aref (a-of mat) 0) i)
-                              (* (aref (a-of mat) 1) j)
-                              (aref (b-of mat) 0) ))
-                        (+ (* (aref (a-of mat) 2) i)
-                           (* (aref (a-of mat) 3) j)
-                           (aref (b-of mat) 1) ))
-                     val )))
-  val )
-
-;; Then we define a modf function that will inform modf how to invert
-;; access function.
-
-(define-modf-function fref (val mat &rest idx)
-  (destructuring-bind (i j) idx
-    (modf (fset:@ (slot-value mat 'seq)
-                  (+ (* (car (dims-of mat))
-                        (+ (* (aref (a-of mat) 0) i)
-                           (* (aref (a-of mat) 1) j)
-                           (aref (b-of mat) 0) ))
-                     (+ (* (aref (a-of mat) 2) i)
-                        (* (aref (a-of mat) 3) j)
-                        (aref (b-of mat) 1) )))
-          val )))
-#+END_SRC
-
-** The Code
-
-I am putting up a [[https://github.com/smithzvk/modf][clone of my repository]] on Github.  I am not sure that the code
-is ready for public consumption, yet.  I will try, in the somewhat near future,
-to strip out some of the dependencies and make sure it builds on Lisp images
-other than mine.  I would like to see the removal of the dependency on my
-toolbox library and implementing facilities for FUNDS.
+3-Clause BSD
