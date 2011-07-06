@@ -6,6 +6,7 @@
 (deftest run-tests ()
   (modf-eval-test)
   (fsetf-tests)
+  (late-invert)
   (test-lists)
   (test-arrays)
   (test-structs)
@@ -21,6 +22,16 @@
            (third ima) 'third )
     (is (equal '((1 first-second 3) second third)
                ima )) ))
+
+(defclass late-parent () ((parent-slot :accessor parent-slot-of)))
+(defclass late-child (late-parent) ((child-slot :accessor child-slot-of)))
+
+(deftest late-invert ()
+  (let ((obj (make-instance 'late-child)))
+    (is (eql (child-slot-of (modf (child-slot-of obj) 'value)) 'value))
+    (is (eql (parent-slot-of (modf (parent-slot-of obj) 'value)) 'value)) )
+  (let ((obj (make-instance 'late-parent)))
+    (is (eql (parent-slot-of (modf (parent-slot-of obj) 'value)) 'value)) ))
 
 (defsuite* lisp-types)
 
