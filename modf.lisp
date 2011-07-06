@@ -213,6 +213,7 @@ functions ahead of time."
             new-val obj args ))
     ;; Check to see if this is a generic function and there are no extra
     ;; arguments (which means it might be a class slot accessor)
+    #+closer-mop
     ((and (not args)
           (typep (symbol-function func) 'generic-function) )
      (late-class-reader-inverter func new-val obj) )
@@ -228,6 +229,7 @@ functions ahead of time."
        (eval `(setf (,func ,new-struct) ',new-val))
        new-struct ))))
 
+#+closer-mop
 (defun late-class-reader-inverter (func new-val obj)
   #+ecl
   ;; ECL seems to work a bit more intuitively.  Effective slots know their
