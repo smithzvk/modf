@@ -65,8 +65,7 @@ following expression easily.
                                                            (FUNCALL
                                                             (MODF-FN AREF)
                                                             (LET ((#:G1547
-                                                                    (AREF #:G1548
-                                                                          1)))
+                                                                    (AREF #:G1548 1)))
                                                               (CONS (CAR #:G1547)
                                                                     (LET ((#:G1546
                                                                             (CDR
