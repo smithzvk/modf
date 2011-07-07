@@ -66,11 +66,20 @@ benefit, not the users, as these symbols belong to the MODF package."
          (package-name (symbol-package symbol))
          ":" (symbol-name symbol) ))
 
+;; @The macro <<modf-fn>> provides a similar functionality to <<setf>>'s
+;; <<#'(setf fn)>>.  This can be used to access the function Modf will use to
+;; invert a form.
+
 ;;<<>>=
 (defmacro modf-fn (symbol)
   "Expand to the defined Modf function.  Basically, \(MODF-FN SYM) is the
 functional analog of #'\(SETF SYM)."
   `(function ,(intern (modf-name symbol) :modf)) )
+
+;; @The macros <<define-modf-function>> and <<define-modf-method>> are a way to
+;; define a function or method that Modf will call with the new value and the
+;; arguments to the accessor.  This function should invert the accessor into a
+;; builder.
 
 ;; <<>>=
 (defmacro define-modf-function (name nth-arg (new-val &rest args) &body body)
