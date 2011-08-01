@@ -76,10 +76,11 @@ functional analog of #'\(SETF SYM)."
 (defmacro define-modf-function (name nth-arg (new-val &rest args) &body body)
   "Define a new modf function.  It inverts NAME forms by modifying the NTH-ARG
 term of the arguments of the place form in the MODF macro."
-  (setf (gethash name *modf-nth-arg*)
-        nth-arg )
-  `(defun ,(intern (modf-name name) :modf) (,new-val ,@args)
-     ,@body ))
+  `(progn
+     (setf (gethash ',name *modf-nth-arg*)
+           ,nth-arg )
+     (defun ,(intern (modf-name name) :modf) (,new-val ,@args)
+       ,@body )))
 
 ;; <<>>=
 (defmacro define-modf-method (name nth-arg (new-val &rest args) &body body)
@@ -88,10 +89,11 @@ term of the arguments of the place form in the MODF macro.  This method can
 specialize on any of ARGS."
   ;; Side effect in a macro, I know.  How can you do this via EVAL-WHEN if the
   ;; rest of the macro-expansion depends on the side effect.
-  (setf (gethash name *modf-nth-arg*)
-        nth-arg )
-  `(defmethod ,(intern (modf-name name) :modf) (,new-val ,@args)
-     ,@body ))
+  `(progn
+     (setf (gethash ',name *modf-nth-arg*)
+           ,nth-arg )
+     (defmethod ,(intern (modf-name name) :modf) (,new-val ,@args)
+       ,@body )))
 
 ;; @\section{The {\em modf} macro}
 
