@@ -229,7 +229,8 @@ functions ahead of time."
        ;; We use eval here because this setf form is hard to invert.  We could,
        ;; in principle, using GET-SETF-EXPANSION.
        (eval `(setf (,func ,new-struct) ',new-val))
-       new-struct ))))
+       new-struct ))
+    (t (error "How shall I invert ~S?" func))))
 
 #+closer-mop
 (defun late-class-reader-inverter (func new-val obj)
