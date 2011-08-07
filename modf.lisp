@@ -22,6 +22,9 @@
 should return an expansion from EXPR to a form that will build a new object that
 has NEW-VAL in the place specified by expr.  NTH-ARG marks which argument is
 considered the actual data which will be inverted next."
+  (setf
+   (gethash name *modf-nth-arg*)
+   nth-arg )
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      (setf
       (gethash ',name *modf-nth-arg*)
@@ -76,6 +79,10 @@ functional analog of #'\(SETF SYM)."
 (defmacro define-modf-function (name nth-arg (new-val &rest args) &body body)
   "Define a new modf function.  It inverts NAME forms by modifying the NTH-ARG
 term of the arguments of the place form in the MODF macro."
+  ;; Side effect in a macro, I know.  How can you do this via EVAL-WHEN if I
+  ;; want it to run even if not a toplevel macro?
+  (setf (gethash name *modf-nth-arg*)
+        nth-arg )
   `(progn
      (eval-when (:compile-toplevel :load-toplevel :execute)
        (setf (gethash ',name *modf-nth-arg*)
@@ -88,8 +95,10 @@ term of the arguments of the place form in the MODF macro."
   "Define a new modf method.  It inverts NAME forms by modifying the NTH-ARG
 term of the arguments of the place form in the MODF macro.  This method can
 specialize on any of ARGS."
-  ;; Side effect in a macro, I know.  How can you do this via EVAL-WHEN if the
-  ;; rest of the macro-expansion depends on the side effect.
+  ;; Side effect in a macro, I know.  How can you do this via EVAL-WHEN if I
+  ;; want it to run even if not a toplevel macro?
+  (setf (gethash name *modf-nth-arg*)
+        nth-arg )
   `(progn
      (eval-when (:compile-toplevel :load-toplevel :execute)
        (setf (gethash ',name *modf-nth-arg*)
