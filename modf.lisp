@@ -77,8 +77,9 @@ functional analog of #'\(SETF SYM)."
   "Define a new modf function.  It inverts NAME forms by modifying the NTH-ARG
 term of the arguments of the place form in the MODF macro."
   `(progn
-     (setf (gethash ',name *modf-nth-arg*)
-           ,nth-arg )
+     (eval-when (:compile-toplevel :load-toplevel :execute)
+       (setf (gethash ',name *modf-nth-arg*)
+             ,nth-arg ))
      (defun ,(intern (modf-name name) :modf) (,new-val ,@args)
        ,@body )))
 
@@ -90,8 +91,9 @@ specialize on any of ARGS."
   ;; Side effect in a macro, I know.  How can you do this via EVAL-WHEN if the
   ;; rest of the macro-expansion depends on the side effect.
   `(progn
-     (setf (gethash ',name *modf-nth-arg*)
-           ,nth-arg )
+     (eval-when (:compile-toplevel :load-toplevel :execute)
+       (setf (gethash ',name *modf-nth-arg*)
+             ,nth-arg ))
      (defmethod ,(intern (modf-name name) :modf) (,new-val ,@args)
        ,@body )))
 
