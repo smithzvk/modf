@@ -6,11 +6,37 @@
 (deftest run-tests ()
   (modf-eval-test)
   (fsetf-tests)
+  (recursive-definitions)
   (late-invert)
   (test-lists)
   (test-arrays)
   (test-structs)
   (test-classes) )
+
+;; We need to test to make sure certain recursive definitions are possible.
+;; Because we make certain assumptions about the arguments in the case of a
+;; missing inversion method, we need to have a argument order like NTH or
+;; GETHASH.
+
+(define-modf-function nth** 2 (new-val nth list)
+  (if (= nth 0)
+      (cons new-val (cdr list))
+      (cons (car list)
+            (modf (nth** (- nth 1) (modf-eval (cdr list)))
+                  new-val ))))
+
+(deftest recursive-definitions ()
+  (remhash (intern (modf::modf-name 'nth*)) modf::*modf-nth-arg*)
+  (unintern (intern (modf::modf-name 'nth*)))
+  (define-modf-function nth* 2 (new-val nth list)
+    (if (= nth 0)
+        (cons new-val (cdr list))
+        (cons (car list)
+              (modf (nth* (- nth 1) (modf-eval (cdr list)))
+                    new-val ))))
+  (let ((list '(1 2 3 4)))
+    (is (equal (modf (nth* 2 list) t) '(1 2 t 4)))
+    (is (equal (modf (nth** 2 list) t) '(1 2 t 4))) ))
 
 (deftest modf-eval-test ()
   (is (equal '(1 t 3 4) (modf (second (modf-eval '(1 2 3 4))) t))) )
