@@ -7,7 +7,8 @@
   (modf-eval-test)
   (fsetf-tests)
   (recursive-definitions)
-  (late-invert)
+  (late-invert-class)
+  (late-invert-struct)
   (test-lists)
   (test-arrays)
   (test-structs)
@@ -69,7 +70,7 @@
   ((child-slot :accessor child-slot-of
                :initarg :child-slot )))
 
-(deftest late-invert ()
+(deftest late-invert-class ()
   (let ((obj (make-instance 'late-child)))
     (class-equal (modf (child-slot-of obj) 'value)
                  (make-instance 'late-child
@@ -92,6 +93,52 @@
     (class-equal (modf (parent-slot-of obj) 'value)
                  (make-instance 'late-parent
                                 :parent-slot 'value ))))
+
+(defstruct late-struct a b c)
+
+(defun ls-equal (obj1 obj2)
+  (and (is (equal (late-struct-a obj1) (late-struct-a obj2)))
+       (is (equal (late-struct-b obj1) (late-struct-b obj2)))
+       (is (equal (late-struct-c obj1) (late-struct-c obj2))) ))
+
+(defstruct late-included included)
+(defstruct (late-including (:include late-included)) a b c)
+
+(defun li-equal (obj1 obj2)
+  (and (is (equal (late-including-d obj1) (late-including-d obj2)))
+       (is (equal (late-including-e obj1) (late-including-e obj2)))
+       (is (equal (late-including-f obj1) (late-including-f obj2)))
+       (is (equal (late-including-included obj1)
+                  (late-including-included obj2) ))))
+
+(deftest late-invert-struct ()
+  (let ((modf::*accessor-heuristics* t))
+    (let ((str1 (make-late-struct :a 1 :b 2 :c 3))
+          (str2 (make-late-struct)) )
+      (ls-equal (modf (late-struct-a str1) t)
+                (make-late-struct :a t :b 2 :c 3) )
+      (ls-equal (modf (late-struct-a str2) t)
+                (make-late-struct :a t) )
+      (ls-equal (modf (late-struct-c str1) t)
+                (make-late-struct :a 1 :b 2 :c t) )
+      (ls-equal (modf (late-struct-c str2) t)
+                (make-late-struct :c t) ))
+    (with-expected-failures
+      (let ((str1 (make-late-including :a 1 :b 2 :c 3 :included 4))
+            (str2 (make-late-including)) )
+        (li-equal (modf (late-including-a str1) t)
+                  (make-late-including :a t :b 2 :c 3) )
+        (li-equal (modf (late-including-a str2) t)
+                  (make-late-including :a t) )
+        (li-equal (modf (late-including-included str1) t)
+                  (make-late-including :a 1 :b 2 :c 3 :included t) )
+        (li-equal (modf (late-including-included str2) t)
+                  (make-late-including :included t) )
+        ;; Test using the accessors of an included object
+        (li-equal (modf (late-included-included str1) t)
+                  (make-late-including :a 1 :b 2 :c 3 :included t) )
+        (li-equal (modf (late-included-included str2) t)
+                  (make-late-including :included t) )))))
 
 (defsuite* lisp-types)
 
