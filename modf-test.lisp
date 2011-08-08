@@ -64,13 +64,22 @@
 
 (defclass late-parent ()
   ((parent-slot :accessor parent-slot-of
-                :initarg parent-slot )))
+                :initarg :parent-slot )))
 (defclass late-child (late-parent)
   ((child-slot :accessor child-slot-of
                :initarg :child-slot )))
 
 (deftest late-invert ()
   (let ((obj (make-instance 'late-child)))
+    (class-equal (modf (child-slot-of obj) 'value)
+                 (make-instance 'late-child
+                                :child-slot 'value ))
+    (class-equal (modf (parent-slot-of obj) 'value)
+                 (make-instance 'late-child
+                                :parent-slot 'value )))
+  (let ((obj (make-instance 'late-child
+                            :parent-slot 'a
+                            :child-slot 'b )))
     (class-equal (modf (child-slot-of obj) 'value)
                  (make-instance 'late-child
                                 :parent-slot (parent-slot-of obj)
