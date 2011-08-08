@@ -277,24 +277,25 @@ functions ahead of time."
          (slot-groups (mapcar #'closer-mop:class-direct-slots
                               (closer-mop:class-precedence-list class) ))
          (new-instance (make-instance class))
-         slot-found )
-    (loop
-      for slots in slot-groups do
-         (loop
-           for slot in slots do
-              (cond ((member func (closer-mop:slot-definition-readers slot))
-                     (setf slot-found t
-                           (slot-value new-instance
-                                       (closer-mop:slot-definition-name slot) )
-                           new-val ))
-                    ((and (not slot-found)
-                          (slot-boundp obj (closer-mop:slot-definition-name slot)) )
-                     (setf (slot-value new-instance (closer-mop:slot-definition-name
-                                                     slot ))
-                           (slot-value obj (closer-mop:slot-definition-name slot)) ))
-                    ((not slot-found)
-                     (slot-makunbound new-instance
-                                      (closer-mop:slot-definition-name slot) )))))
+         encounted-slots )
+    (iter
+      (for slots in slot-groups)
+      (iter
+        (for slot in slots)
+        (unless (member slot encounted-slots)
+          (cond ((and 
+                  (member func (closer-mop:slot-definition-readers slot)) )
+                 (setf (slot-value new-instance
+                                   (closer-mop:slot-definition-name slot) )
+                       new-val ))
+                ((slot-boundp obj (closer-mop:slot-definition-name slot))
+                 (setf (slot-value new-instance (closer-mop:slot-definition-name
+                                                 slot ))
+                       (slot-value obj (closer-mop:slot-definition-name slot)) ))
+                (t (slot-makunbound
+                    new-instance
+                    (closer-mop:slot-definition-name slot) ))))
+        (push slot encounted-slots) ))
     new-instance ))
 
 ;; <<>>=

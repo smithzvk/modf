@@ -1,7 +1,7 @@
 
 (defpackage :modf
-    (:use :cl)
-  (:import-from :alexandria #:with-gensyms) 
+    (:use :cl :iterate)
+  (:import-from :alexandria #:with-gensyms)
   (:export #:modf
            #:modf-eval
            #:modf-fn
