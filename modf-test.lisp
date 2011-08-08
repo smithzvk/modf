@@ -6,11 +6,50 @@
 (deftest run-tests ()
   (modf-eval-test)
   (fsetf-tests)
+  (recursive-definitions)
   (late-invert)
   (test-lists)
   (test-arrays)
   (test-structs)
   (test-classes) )
+
+#+closer-mop
+(defun class-equal (obj1 obj2)
+  (let* ((class (class-of obj1))
+         (slots (closer-mop:class-slots class)) )
+    (is (eql class (class-of obj2)))
+    (iter (for slot in slots)
+      (cond ((slot-boundp obj1 (closer-mop:slot-definition-name slot))
+             (is (equal
+                  (slot-value obj1 (closer-mop:slot-definition-name slot))
+                  (slot-value obj2 (closer-mop:slot-definition-name slot)) )))
+            (t (is (not (slot-boundp
+                         obj2 (closer-mop:slot-definition-name slot) ))))))))
+
+;; We need to test to make sure certain recursive definitions are possible.
+;; Because we make certain assumptions about the arguments in the case of a
+;; missing inversion method, we need to have a argument order like NTH or
+;; GETHASH.
+
+(define-modf-function nth** 2 (new-val nth list)
+  (if (= nth 0)
+      (cons new-val (cdr list))
+      (cons (car list)
+            (modf (nth** (- nth 1) (modf-eval (cdr list)))
+                  new-val ))))
+
+(deftest recursive-definitions ()
+  (remhash (intern (modf::modf-name 'nth*)) modf::*modf-nth-arg*)
+  (unintern (intern (modf::modf-name 'nth*)))
+  (define-modf-function nth* 2 (new-val nth list)
+    (if (= nth 0)
+        (cons new-val (cdr list))
+        (cons (car list)
+              (modf (nth* (- nth 1) (modf-eval (cdr list)))
+                    new-val ))))
+  (let ((list '(1 2 3 4)))
+    (is (equal (modf (nth* 2 list) t) '(1 2 t 4)))
+    (is (equal (modf (nth** 2 list) t) '(1 2 t 4))) ))
 
 (deftest modf-eval-test ()
   (is (equal '(1 t 3 4) (modf (second (modf-eval '(1 2 3 4))) t))) )
@@ -23,15 +62,27 @@
     (is (equal '((1 first-second 3) second third)
                ima )) ))
 
-(defclass late-parent () ((parent-slot :accessor parent-slot-of)))
-(defclass late-child (late-parent) ((child-slot :accessor child-slot-of)))
+(defclass late-parent ()
+  ((parent-slot :accessor parent-slot-of
+                :initarg parent-slot )))
+(defclass late-child (late-parent)
+  ((child-slot :accessor child-slot-of
+               :initarg :child-slot )))
 
 (deftest late-invert ()
   (let ((obj (make-instance 'late-child)))
-    (is (eql (child-slot-of (modf (child-slot-of obj) 'value)) 'value))
-    (is (eql (parent-slot-of (modf (parent-slot-of obj) 'value)) 'value)) )
+    (class-equal (modf (child-slot-of obj) 'value)
+                 (make-instance 'late-child
+                                :parent-slot (parent-slot-of obj)
+                                :child-slot 'value ))
+    (class-equal (modf (parent-slot-of obj) 'value)
+                 (make-instance 'late-child
+                                :parent-slot 'value
+                                :child-slot (child-slot-of obj) )))
   (let ((obj (make-instance 'late-parent)))
-    (is (eql (parent-slot-of (modf (parent-slot-of obj) 'value)) 'value)) ))
+    (class-equal (modf (parent-slot-of obj) 'value)
+                 (make-instance 'late-parent
+                                :parent-slot 'value ))))
 
 (defsuite* lisp-types)
 
