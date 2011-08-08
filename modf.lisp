@@ -85,10 +85,11 @@ functional analog of #'\(SETF SYM)."
 (defmacro define-modf-function (name nth-arg (new-val &rest args) &body body)
   "Define a new modf function.  It inverts NAME forms by modifying the NTH-ARG
 term of the arguments of the place form in the MODF macro."
-  (setf (gethash name *modf-nth-arg*)
-        nth-arg )
-  `(defun ,(intern (modf-name name) :modf) (,new-val ,@args)
-     ,@body ))
+  `(progn
+     (setf (gethash ',name *modf-nth-arg*)
+           ,nth-arg )
+     (defun ,(intern (modf-name name) :modf) (,new-val ,@args)
+       ,@body )))
 
 ;; <<>>=
 (defmacro define-modf-method (name nth-arg (new-val &rest args) &body body)
@@ -97,10 +98,11 @@ term of the arguments of the place form in the MODF macro.  This method can
 specialize on any of ARGS."
   ;; Side effect in a macro, I know.  How can you do this via EVAL-WHEN if the
   ;; rest of the macro-expansion depends on the side effect.
-  (setf (gethash name *modf-nth-arg*)
-        nth-arg )
-  `(defmethod ,(intern (modf-name name) :modf) (,new-val ,@args)
-     ,@body ))
+  `(progn
+     (setf (gethash ',name *modf-nth-arg*)
+           ,nth-arg )
+     (defmethod ,(intern (modf-name name) :modf) (,new-val ,@args)
+       ,@body )))
 
 ;; @\section{The {\em modf} macro}
 
@@ -236,7 +238,8 @@ functions ahead of time."
        ;; We use eval here because this setf form is hard to invert.  We could,
        ;; in principle, using GET-SETF-EXPANSION.
        (eval `(setf (,func ,new-struct) ',new-val))
-       new-struct ))))
+       new-struct ))
+    (t (error "How shall I invert ~S?" func))))
 
 #+closer-mop
 (defun late-class-reader-inverter (func new-val obj)
@@ -284,14 +287,17 @@ functions ahead of time."
     new-instance ))
 
 ;; <<>>=
-(defun modf-expand (new-val expr enclosed-obj-sym)
+(defun modf-expand (new-val expr enclosed-obj-sym env)
   (cond ((or (atom expr) (eql (car expr) 'modf-eval))
          `(let ((,enclosed-obj-sym ,expr))
             ,new-val ))
+        ((macro-function (car expr) env)
+         (modf-expand new-val (funcall (macro-function (car expr) env) expr env)
+                      enclosed-obj-sym env))
         ;; First, try rewrite rules
         ((gethash (car expr) *modf-rewrites*)
          (modf-expand new-val (funcall (gethash (car expr) *modf-rewrites*) expr)
-                      enclosed-obj-sym ))
+                      enclosed-obj-sym env))
         ;; Okay, we are going to call modf-expand
         (t (let* ((obj-sym (gensym))
                   (new-val (if enclosed-obj-sym
@@ -335,10 +341,10 @@ functions ahead of time."
                                        (container-arg-n expr)
                                        expr obj-sym ))))))
               (nth (container-arg-n expr) expr)
-              obj-sym )))))
+              obj-sym env)))))
 
 ;; <<>>=
-(defmacro modf (place value &rest more)
+(defmacro modf (place value &rest more &environment env)
   "Make a new object \(which may use some of the old object) such that PLACE
 evaluates to VALUE.
 
@@ -352,9 +358,9 @@ used in the subsequence MODF-PLACE NEW-VALUE pairs until the end of the MODF
 form."
   (if more
       (destructuring-bind (next-symbol next-place next-value &rest next-more) more
-        `(let ((,next-symbol ,(modf-expand value place nil)))
+        `(let ((,next-symbol ,(modf-expand value place nil env)))
            (modf ,next-place ,next-value ,@next-more) ))
-      (modf-expand value place nil) ))
+      (modf-expand value place nil env) ))
 
 (defun find-container (place)
   (cond ((atom place)
