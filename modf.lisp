@@ -244,10 +244,12 @@ functions ahead of time."
           (not args)
           (typep obj 'structure-object)
           (let ((struct-name (symbol-name (type-of obj))))
-            (equal struct-name (subseq (symbol-name func) 0 (length struct-name))) ))
+            (equal struct-name (subseq (symbol-name func)
+                                       0 (min (length struct-name)
+                                              (length (symbol-name func)) )))))
      (let ((new-struct (copy-structure obj)))
        ;; We use eval here because this setf form is hard to invert.  We could,
-       ;; in principle, using GET-SETF-EXPANSION.
+       ;; in principle, use GET-SETF-EXPANSION.
        (eval `(setf (,func ,new-struct) ',new-val))
        new-struct ))
     (t (error "How shall I invert ~S?" func))))
