@@ -305,12 +305,13 @@ functions ahead of time."
   (cond ((or (atom expr) (eql (car expr) 'modf-eval))
          `(let ((,enclosed-obj-sym ,expr))
             ,new-val ))
-        ((macro-function (car expr) env)
-         (modf-expand new-val (funcall (macro-function (car expr) env) expr env)
-                      enclosed-obj-sym env))
         ;; First, try rewrite rules
         ((gethash (car expr) *modf-rewrites*)
          (modf-expand new-val (funcall (gethash (car expr) *modf-rewrites*) expr)
+                      enclosed-obj-sym env))
+        ;; expand it if it is a macro
+        ((macro-function (car expr) env)
+         (modf-expand new-val (funcall (macro-function (car expr) env) expr env)
                       enclosed-obj-sym env))
         ;; Okay, we are going to call modf-expand
         (t (let* ((obj-sym (gensym))
