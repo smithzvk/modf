@@ -300,11 +300,18 @@ functions ahead of time."
         (push slot encounted-slots) ))
     new-instance ))
 
+(defvar *special-modf-forms* (make-hash-table))
+
 ;; <<>>=
 (defun modf-expand (new-val expr enclosed-obj-sym env)
   (cond ((or (atom expr) (eql (car expr) 'modf-eval))
          `(let ((,enclosed-obj-sym ,expr))
             ,new-val ))
+        ;; Execute special forms (this allows us to make extensions to Modf
+        ;; without altering the source
+        ((gethash (car expr) *special-modf-forms*)
+         (funcall (gethash (car expr) *special-modf-forms*)
+                  new-val expr enclosed-obj-sym env ))
         ;; First, try rewrite rules
         ((gethash (car expr) *modf-rewrites*)
          (modf-expand new-val (funcall (gethash (car expr) *modf-rewrites*) expr)
