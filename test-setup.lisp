@@ -1,7 +1,7 @@
 
 (defpackage :modf-test
   (:use :cl :stefil :modf :iter)
-  (:export :run-tests) )
+  (:export :run-tests))
 
 (in-package :modf-test)
 

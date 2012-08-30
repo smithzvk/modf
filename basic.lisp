@@ -3,11 +3,11 @@
 
 (define-modf-expander cdr 1 (expr val new-val)
   (declare (ignore expr))
-  `(cons (car ,val) ,new-val) )
+  `(cons (car ,val) ,new-val))
 
 (define-modf-expander car 1 (expr val new-val)
   (declare (ignore expr))
-  `(cons ,new-val (cdr ,val)) )
+  `(cons ,new-val (cdr ,val)))
 
 #+closer-mop
 (defun copy-instance (obj)
@@ -17,54 +17,54 @@
     (loop for slot in slots do
              (cond ((slot-boundp obj (closer-mop:slot-definition-name slot))
                     (setf (slot-value new-instance (closer-mop:slot-definition-name
-                                                    slot ))
-                          (slot-value obj (closer-mop:slot-definition-name slot)) ))
+                                                    slot))
+                          (slot-value obj (closer-mop:slot-definition-name slot))))
                    (t (slot-makunbound new-instance
-                                       (closer-mop:slot-definition-name slot) ))))
-    new-instance ))
+                                       (closer-mop:slot-definition-name slot)))))
+    new-instance))
 #-closer-mop
 (defun copy-instance (obj)
-  (error "Sorry, I need Closer-MOP to Modf classes.") )
+  (error "Sorry, I need Closer-MOP to Modf classes."))
 
 (define-modf-expander slot-value 1 (expr val new-val)
   `(let ((new (copy-instance ,val)))
      (setf (slot-value new ,(third expr)) ,new-val)
-     new ))
+     new))
 
 (define-modf-method pathname-directory 1 (new-val path)
-  (make-pathname :directory new-val :defaults path) )
+  (make-pathname :directory new-val :defaults path))
 
 (define-modf-method pathname-name 1 (new-val path)
-  (make-pathname :name new-val :defaults path) )
+  (make-pathname :name new-val :defaults path))
 
 (define-modf-method pathname-type 1 (new-val path)
-  (make-pathname :type new-val :defaults path) )
+  (make-pathname :type new-val :defaults path))
 
 (defun replace-nth (nth list new-val)
   (if (> nth 0)
       (cons (car list) (replace-nth (- nth 1) (cdr list) new-val))
-      (cons new-val (cdr list)) ))
+      (cons new-val (cdr list))))
 
 (define-modf-function nth 2 (new-val nth obj)
-  (replace-nth nth obj new-val) )
+  (replace-nth nth obj new-val))
 
 (defun replace-nthcdr (nth list new-val)
   (if (> nth 0)
       (cons (car list) (replace-nthcdr (- nth 1) (cdr list) new-val))
-      new-val ))
+      new-val))
 
 (define-modf-function nthcdr 2 (new-val nth obj)
-  (replace-nthcdr nth obj new-val) )
+  (replace-nthcdr nth obj new-val))
 
 (define-modf-function last 1 (new-val obj)
   (let ((len (length obj)))
-    (replace-nthcdr (- len 1) obj new-val)) )
+    (replace-nthcdr (- len 1) obj new-val)))
 
 (define-modf-function subseq 1 (new-val seq start &optional (end (length seq)))
   (concatenate (type-of seq)
                (subseq seq 0 start)
                (subseq new-val 0 (min (length new-val) (- end start)))
-               (subseq seq (+ start (min (length new-val) (- end start)))) ))
+               (subseq seq (+ start (min (length new-val) (- end start))))))
 
 ;; @\section{Array Manipulations}
 
@@ -78,7 +78,7 @@
 (define-modf-function aref 1 (new-val array &rest idx)
   (let ((new-arr (alexandria:copy-array array)))
     (setf (apply #'aref new-arr idx) new-val)
-    new-arr ))
+    new-arr))
 
 ;; @\section{Hash Table Manipulations}
 
@@ -91,5 +91,5 @@
 (define-modf-function gethash 2 (new-val key hash-table)
   (let ((new-hash (alexandria:copy-hash-table hash-table)))
     (setf (gethash key new-hash) new-val)
-    new-hash ))
+    new-hash))
 

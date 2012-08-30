@@ -4,6 +4,6 @@
   :author "Zachary Smith <zachkostsmith@gmail.com>"
   :license "Modified BSD"
   :components ((:file "test-setup")
-               (:file "modf-test") )
+               (:file "modf-test"))
   :serial t
-  :depends-on (:iterate :stefil :modf) )
+  :depends-on (:iterate :stefil :modf))

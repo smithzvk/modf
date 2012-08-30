@@ -11,10 +11,10 @@ new data structures with specified changes in place."
                (:file "modf")
                (:file "rewrite-rules")
                (:file "basic")
-               (:file "modf-def") )
+               (:file "modf-def"))
   :serial t
   :depends-on (:alexandria
                #-abcl :closer-mop
-               :iterate ))
+               :iterate))
 
 

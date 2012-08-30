@@ -6,7 +6,7 @@
   (:shadow cl:defstruct cl:defclass)
   (:export #:defstruct #:defclass
            #:define-modf-for-class-slots
-           #:define-modf-for-struct-slots ))
+           #:define-modf-for-struct-slots))
 
 (in-package :modf-def)
 
@@ -14,41 +14,41 @@
   "Define a new structure with Modf expansions for slots."
   `(progn (cl:defstruct ,name-and-options ,@slot-descriptions)
           (define-modf-for-struct-slots
-              (defstruct ,name-and-options ,@slot-descriptions) )))
+              (defstruct ,name-and-options ,@slot-descriptions))))
 
 (defun modf-for-struct-slots-expander (defstruct name-and-options
-                                        &rest slot-descriptions )
+                                        &rest slot-descriptions)
   ;; We need the name and "conc-name" (what is prepended to the accessor
   ;; functions) in order to define our Modf expansions
   (declare (ignore defstruct))
   (destructuring-bind (&key name
-                            (conc-name (concatenate 'string (symbol-name name) "-")) )
+                            (conc-name (concatenate 'string (symbol-name name) "-")))
       (if (atom name-and-options) (list :name name-and-options)
           (append
            (list :name (first name-and-options))
            (let ((conc-name-option
                    (find :conc-name (rest name-and-options)
-                         :key (lambda (x) (if (atom x) x (first x))) )))
+                         :key (lambda (x) (if (atom x) x (first x))))))
              (if (or (atom conc-name-option) (null (rest conc-name-option)))
                  (list :conc-name "")
-                 (list :conc-name (symbol-name (second conc-name-option))) ))))
+                 (list :conc-name (symbol-name (second conc-name-option)))))))
     (iter (for slot in slot-descriptions)
       (let ((accessor (intern (concatenate
                                'string conc-name
                                (symbol-name (if (atom slot)
                                                 slot
-                                                (first slot) ))))))
+                                                (first slot)))))))
         (collecting
          `(define-modf-function ,accessor 1 (new-val object)
             (let ((new-struct (copy-structure object)))
               (setf (,accessor new-struct) new-val)
-              new-struct )))))))
+              new-struct)))))))
 
 (defmacro define-modf-for-struct-slots (structure-definition-form)
   "This macro defines Modf expanders for structure slots when given a structure
 definition form."
   `(eval-when (:compile-toplevel :load-toplevel :execute)
-     ,@(apply #'modf-for-struct-slots-expander structure-definition-form) ))
+     ,@(apply #'modf-for-struct-slots-expander structure-definition-form)))
 
 (defun group (source n)
   (if (zerop n) (error "zero length"))
@@ -56,13 +56,13 @@ definition form."
              (let ((rest (nthcdr n source)))
                (if (consp rest)
                    (rec rest (cons (subseq source 0 n) acc))
-                   (nreverse (cons source acc)) ))))
-    (if source (rec source nil) nil) ))
+                   (nreverse (cons source acc))))))
+    (if source (rec source nil) nil)))
 
 (defun group-by (list &rest counts)
   (let ((ret list))
     (dolist (cnt counts ret)
-      (setf ret (group ret cnt)) )))
+      (setf ret (group ret cnt)))))
 
 (defmacro defclass (name direct-superclasses direct-slots &rest options)
   "Define Modf expansions for class slot accessor and reader methods."
@@ -76,19 +76,19 @@ definition form."
            (iter (for accessor in (remove-if-not
                                    (lambda (x) (member
                                            (first x)
-                                           '(:accessor :reader) ))
-                                   (group-by (rest slot) 2) ))
+                                           '(:accessor :reader)))
+                                   (group-by (rest slot) 2)))
              (in :outer
                  (collecting
                   `(define-modf-method ,(second accessor) 1
                        (new-val (obj ,name))
-                     (modf (slot-value obj ',slot-name) new-val) ))))))))
+                     (modf (slot-value obj ',slot-name) new-val)))))))))
 
 (defun get-modf-reader-definitions (class &optional (defined-readers nil))
   #+closer-mop
   (let ((class (find-class class)))
     (unless (closer-mop:class-finalized-p class)
-      (error "Class ~S not finalized." class) )
+      (error "Class ~S not finalized." class))
     #+ecl
     ;; ECL seems to work a bit more intuitively.  Effective slots know their
     ;; readers.
@@ -101,12 +101,12 @@ definition form."
                 (collecting
                  `(define-modf-method ,reader 1 (new-val (obj ,(class-name class)))
                     (modf (slot-value
-                           obj ',(closer-mop:slot-definition-name slot) )
-                          new-val ))))))))
+                           obj ',(closer-mop:slot-definition-name slot))
+                          new-val))))))))
     #-ecl
     (let* ((slot-groups (mapcar #'closer-mop:class-direct-slots
-                                (closer-mop:class-precedence-list class) ))
-           (defined-readers defined-readers) )
+                                (closer-mop:class-precedence-list class)))
+           (defined-readers defined-readers))
       (iter :outer
         (for slots in slot-groups)
         (iter
@@ -122,8 +122,8 @@ definition form."
                    `(define-modf-method ,reader 1 (new-val (obj ,(class-name class)))
                       (modf
                        (slot-value
-                        obj ',(closer-mop:slot-definition-name slot) )
-                       new-val )))))))))))
+                        obj ',(closer-mop:slot-definition-name slot))
+                       new-val)))))))))))
 
 (defun modf-for-class-slots-expander (class)
   (if (consp class)
@@ -140,25 +140,25 @@ definition form."
                (iter (for accessor in (remove-if-not
                                        (lambda (x) (member
                                                (first x)
-                                               '(:accessor :reader) ))
-                                       (group-by (rest slot) 2) ))
+                                               '(:accessor :reader)))
+                                       (group-by (rest slot) 2)))
                  (in :outer
                      (push accessor defined-readers)
                      (collecting
                       `(define-modf-method ,(second accessor) 1
                            (new-val (obj ,name))
-                         (modf (slot-value obj ',slot-name) new-val) ))))))
+                         (modf (slot-value obj ',slot-name) new-val)))))))
            ;; Then we handle the parent (if Closer-Mop is loaded).  This is a bit
            ;; messy.  What about the proper precedence list?
            (mapcar #'get-modf-reader-definitions direct-superclasses
-                   defined-readers ))))
+                   defined-readers))))
       ;; This must be a class object or name
-      (get-modf-reader-definitions class) ))
+      (get-modf-reader-definitions class)))
 
 (defmacro define-modf-for-class-slots (class-name-or-definition)
   "This macro defines Modf expanders for a class.  We can do this given the
 definition form for the class \(much like with DEFINE-MODF-FOR-STRUCT-SLOTS) or
 the a name of a finalized class."
   `(eval-when (:compile-toplevel :load-toplevel :execute)
-     ,@(modf-for-class-slots-expander class-name-or-definition) ))
+     ,@(modf-for-class-slots-expander class-name-or-definition)))
 

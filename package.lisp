@@ -9,5 +9,5 @@
            #:define-modf-rewrite
            #:define-modf-function
            #:define-modf-method
-           #:define-modf-expander ))
+           #:define-modf-expander))
 

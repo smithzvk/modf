@@ -10,4 +10,4 @@
 (defun mkstr (&rest args)
   "MaKe STRing"
   (with-output-to-string (s)
-    (dolist (a args) (princ a s)) ))
+    (dolist (a args) (princ a s))))

@@ -20,7 +20,7 @@ following expression easily.
   ;; Change that last value with Modf
   (modf
    (cadr (aref (cadr (aref (cadr (aref (cadr *crazy*) 1)) 1)) 1))
-   nil )
+   nil)
   ==> (1 #(A (2 #(B (3 #(C (4 NIL)))))))
   
   ;; But note that the original data is unchanged
@@ -30,7 +30,7 @@ following expression easily.
   ;; Note that the Modf form looks a lot like how you would use setf
   (setf
    (cadr (aref (cadr (aref (cadr (aref (cadr *crazy*) 1)) 1)) 1))
-   nil )
+   nil)
   ==> NIL
   
   ,*crazy*
@@ -40,7 +40,7 @@ following expression easily.
   (macroexpand
    '(modf
      (cadr (aref (cadr (aref (cadr (aref (cadr *crazy*) 1)) 1)) 1))
-     nil ))
+     nil))
   
   ==>
   (LET ((#:G1556 *CRAZY*))

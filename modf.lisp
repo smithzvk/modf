@@ -8,30 +8,30 @@
 ;; <<>>=
 (defvar *modf-expansions*
   (make-hash-table)
-  "Holds expansion functions" )
+  "Holds expansion functions")
 
 ;; <<>>=
 (defvar *modf-nth-arg* (make-hash-table)
-  "Holds what argument to try to invert next." )
+  "Holds what argument to try to invert next.")
 
 ;; <<>>=
 (defmacro define-modf-expander (name nth-arg
                                 (expr val new-val)
-                                &body body )
+                                &body body)
   "Define a new expander which inverts forms starting with NAME.  Your function
 should return an expansion from EXPR to a form that will build a new object that
 has NEW-VAL in the place specified by expr.  NTH-ARG marks which argument is
 considered the actual data which will be inverted next."
   (setf
    (gethash name *modf-nth-arg*)
-   nth-arg )
+   nth-arg)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      (setf
       (gethash ',name *modf-nth-arg*)
       ,nth-arg
       (gethash ',name *modf-expansions*)
       (lambda (,expr ,val ,new-val)
-        ,@body ))))
+        ,@body))))
 
 ;; @\section{Rewrite Rules}
 
@@ -40,7 +40,7 @@ considered the actual data which will be inverted next."
 
 ;; <<>>=
 (defvar *modf-rewrites*
-  (make-hash-table) )
+  (make-hash-table))
 
 ;; <<>>=
 (defmacro define-modf-rewrite (name (expr) &body body)
@@ -50,7 +50,7 @@ via DEFINE-MODF-EXPANDER, DEFINE-MODF-FUNCTION, and DEFINE-MODF-METHOD)."
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      (setf (gethash ',name *modf-rewrites*)
            (lambda (,expr)
-             ,@body ))))
+             ,@body))))
 
 ;; @\section{Defining Modf functions and methods}
 
@@ -67,7 +67,7 @@ unlikely to be chosen by anyone.  This is for avoiding collisions for my
 benefit, not the users, as these symbols belong to the MODF package."
   (mkstr "BUILDER:"
          (package-name (symbol-package symbol))
-         ":" (symbol-name symbol) ))
+         ":" (symbol-name symbol)))
 
 ;; @The macro <<modf-fn>> provides a similar functionality to <<setf>>'s
 ;; <<#'(setf fn)>>.  This can be used to access the function Modf will use to
@@ -77,7 +77,7 @@ benefit, not the users, as these symbols belong to the MODF package."
 (defmacro modf-fn (symbol)
   "Expand to the defined Modf function.  Basically, \(MODF-FN SYM) is the
 functional analog of #'\(SETF SYM)."
-  `(function ,(intern (modf-name symbol) :modf)) )
+  `(function ,(intern (modf-name symbol) :modf)))
 
 ;; @The macros <<define-modf-function>> and <<define-modf-method>> are a way to
 ;; define a function or method that Modf will call with the new value and the
@@ -91,13 +91,13 @@ term of the arguments of the place form in the MODF macro."
   ;; Side effect in a macro, I know.  How can you do this via EVAL-WHEN if I
   ;; want it to run even if not a toplevel macro?
   (setf (gethash name *modf-nth-arg*)
-        nth-arg )
+        nth-arg)
   `(progn
      (eval-when (:compile-toplevel :load-toplevel :execute)
        (setf (gethash ',name *modf-nth-arg*)
-             ,nth-arg ))
+             ,nth-arg))
      (defun ,(intern (modf-name name) :modf) (,new-val ,@args)
-       ,@body )))
+       ,@body)))
 
 ;; <<>>=
 (defmacro define-modf-method (name nth-arg (new-val &rest args) &body body)
@@ -107,13 +107,13 @@ specialize on any of ARGS."
   ;; Side effect in a macro, I know.  How can you do this via EVAL-WHEN if I
   ;; want it to run even if not a toplevel macro?
   (setf (gethash name *modf-nth-arg*)
-        nth-arg )
+        nth-arg)
   `(progn
      (eval-when (:compile-toplevel :load-toplevel :execute)
        (setf (gethash ',name *modf-nth-arg*)
-             ,nth-arg ))
+             ,nth-arg))
      (defmethod ,(intern (modf-name name) :modf) (,new-val ,@args)
-       ,@body )))
+       ,@body)))
 
 ;; @\section{The {\em modf} macro}
 
@@ -141,7 +141,7 @@ specialize on any of ARGS."
 ;; (let ((tmp x)) ; Grab x to protect against multiple evaluation
 ;;   ;; The builder code
 ;;   (cons (car x)
-;;         ... )
+;;         ...)
 
 ;; Then, <<modf>> needs to replace ``...'' with the method of replacing the car
 ;; of a cons cell.  Since we know we will be operating on the cdr of x, we first
@@ -150,7 +150,7 @@ specialize on any of ARGS."
 ;; (let ((tmp x))
 ;;   (cons (car x)
 ;;         (let ((tmp (cdr x)))
-;;           ... )))
+;;           ...)))
 
 ;; We do this as an optimization, this way we only need to drill down into the
 ;; structure one time.  We then expand the outer accessor
@@ -159,7 +159,7 @@ specialize on any of ARGS."
 ;;   (cons (car x)
 ;;         (let ((tmp (cdr x)))
 ;;           (cons ...
-;;                 (cdr tmp) ))))
+;;                 (cdr tmp)))))
 
 ;; Notice that at each level we only have need of one <<tmp>> symbol.  The last
 ;; question is, what do we fill into the ``...''.  That spot will be filled with
@@ -189,32 +189,32 @@ specialize on any of ARGS."
 
 (defun container-arg-n (expr)
   (cond ((eql (car expr) 'cl:apply)
-         (1+ (gethash (cadadr expr) *modf-nth-arg* 1)) )
-        (t (gethash (car expr) *modf-nth-arg* 1)) ))
+         (1+ (gethash (cadadr expr) *modf-nth-arg* 1)))
+        (t (gethash (car expr) *modf-nth-arg* 1))))
 
 (defun modf-fn-defined? (expr)
   (cond ((eql (car expr) 'cl:apply)
-         (fboundp (intern (modf-name (cadadr expr)) :modf)) )
-        (t (fboundp (intern (modf-name (car expr)) :modf))) ))
+         (fboundp (intern (modf-name (cadadr expr)) :modf)))
+        (t (fboundp (intern (modf-name (car expr)) :modf)))))
 
 (defun expansions-defined? (expr)
-  (gethash (car expr) *modf-expansions*) )
+  (gethash (car expr) *modf-expansions*))
 
 (defun accessor-in (expr)
   (case (car expr)
     (cl:apply (cadadr expr))
-    (otherwise (car expr)) ))
+    (otherwise (car expr))))
 
 (defun apply-expression? (expr)
-  (eql (car expr) 'cl:apply) )
+  (eql (car expr) 'cl:apply))
 
 (defun funcall-expression? (expr)
-  (eql (car expr) 'cl:funcall) )
+  (eql (car expr) 'cl:funcall))
 
 (defun expandable? (expr)
   (cond ((atom expr) nil)
         ((eql (first expr) 'modf-eval) nil)
-        (t expr) ))
+        (t expr)))
 
 (defvar *accessor-heuristics* t
   "This controls whether we should make educated guesses regarding inverting
@@ -232,13 +232,13 @@ functions ahead of time."
     ;; Check to see if the function is a defined modf function/method.
     ((fboundp (intern (modf-name func) :modf))
      (apply (symbol-function (intern (modf-name func) :modf))
-            new-val obj args ))
+            new-val obj args))
     ;; Check to see if this is a generic function and there are no extra
     ;; arguments (which means it might be a class slot accessor)
     #+closer-mop
     ((and (not args)
-          (typep (symbol-function func) 'generic-function) )
-     (late-class-reader-inverter func new-val obj) )
+          (typep (symbol-function func) 'generic-function))
+     (late-class-reader-inverter func new-val obj))
     ;; Check to see if this is likely a structure accessor function
     ((and *accessor-heuristics*
           (not args)
@@ -246,12 +246,12 @@ functions ahead of time."
           (let ((struct-name (symbol-name (type-of obj))))
             (equal struct-name (subseq (symbol-name func)
                                        0 (min (length struct-name)
-                                              (length (symbol-name func)) )))))
+                                              (length (symbol-name func)))))))
      (let ((new-struct (copy-structure obj)))
        ;; We use eval here because this setf form is hard to invert.  We could,
        ;; in principle, use GET-SETF-EXPANSION.
        (eval `(setf (,func ,new-struct) ',new-val))
-       new-struct ))
+       new-struct))
     (t (error "How shall I invert ~S?" func))))
 
 #+closer-mop
@@ -265,40 +265,40 @@ functions ahead of time."
     (loop for slot in slots do
              (cond ((member func (closer-mop:slot-definition-readers slot))
                     (setf (slot-value new-instance
-                                      (closer-mop:slot-definition-name slot) )
-                          new-val ))
+                                      (closer-mop:slot-definition-name slot))
+                          new-val))
                    ((slot-boundp obj (closer-mop:slot-definition-name slot))
                     (setf (slot-value new-instance (closer-mop:slot-definition-name
-                                                    slot ))
-                          (slot-value obj (closer-mop:slot-definition-name slot)) ))
+                                                    slot))
+                          (slot-value obj (closer-mop:slot-definition-name slot))))
                    (t (slot-makunbound new-instance
-                                       (closer-mop:slot-definition-name slot) ))))
-    new-instance )
+                                       (closer-mop:slot-definition-name slot)))))
+    new-instance)
   #-ecl
   (let* ((class (class-of obj))
          (slot-groups (mapcar #'closer-mop:class-direct-slots
-                              (closer-mop:class-precedence-list class) ))
+                              (closer-mop:class-precedence-list class)))
          (new-instance (make-instance class))
-         encounted-slots )
+         encounted-slots)
     (iter
       (for slots in slot-groups)
       (iter
         (for slot in slots)
         (unless (member slot encounted-slots)
           (cond ((and 
-                  (member func (closer-mop:slot-definition-readers slot)) )
+                  (member func (closer-mop:slot-definition-readers slot)))
                  (setf (slot-value new-instance
-                                   (closer-mop:slot-definition-name slot) )
-                       new-val ))
+                                   (closer-mop:slot-definition-name slot))
+                       new-val))
                 ((slot-boundp obj (closer-mop:slot-definition-name slot))
                  (setf (slot-value new-instance (closer-mop:slot-definition-name
-                                                 slot ))
-                       (slot-value obj (closer-mop:slot-definition-name slot)) ))
+                                                 slot))
+                       (slot-value obj (closer-mop:slot-definition-name slot))))
                 (t (slot-makunbound
                     new-instance
-                    (closer-mop:slot-definition-name slot) ))))
-        (push slot encounted-slots) ))
-    new-instance ))
+                    (closer-mop:slot-definition-name slot)))))
+        (push slot encounted-slots)))
+    new-instance))
 
 (defvar *special-modf-forms* (make-hash-table))
 
@@ -306,12 +306,12 @@ functions ahead of time."
 (defun modf-expand (new-val expr enclosed-obj-sym env)
   (cond ((or (atom expr) (eql (car expr) 'modf-eval))
          `(let ((,enclosed-obj-sym ,expr))
-            ,new-val ))
+            ,new-val))
         ;; Execute special forms (this allows us to make extensions to Modf
         ;; without altering the source
         ((gethash (car expr) *special-modf-forms*)
          (funcall (gethash (car expr) *special-modf-forms*)
-                  new-val expr enclosed-obj-sym env ))
+                  new-val expr enclosed-obj-sym env))
         ;; First, try rewrite rules
         ((gethash (car expr) *modf-rewrites*)
          (modf-expand new-val (funcall (gethash (car expr) *modf-rewrites*) expr)
@@ -325,16 +325,16 @@ functions ahead of time."
                   (new-val (if enclosed-obj-sym
                                `(let ((,enclosed-obj-sym
                                         ,(replace-nth (container-arg-n expr) expr
-                                                      obj-sym )))
-                                  ,new-val )
-                               new-val )))
+                                                      obj-sym)))
+                                  ,new-val)
+                               new-val)))
              (modf-expand
               (cond
                 ;; Then, see if an expansion is defined
                 ((expansions-defined? expr)
                  ;; bind form to the enclosed object
                  (funcall (gethash (accessor-in expr) *modf-expansions*)
-                          expr obj-sym new-val ))
+                          expr obj-sym new-val))
                 ;; Lastly, This must be a modf function or method
                 ((apply-expression? expr)
                  (if (modf-fn-defined? expr)
@@ -343,12 +343,12 @@ functions ahead of time."
                              ,@(cddr
                                 (replace-nth
                                  (container-arg-n expr)
-                                 expr obj-sym )))
+                                 expr obj-sym)))
                      `(apply #'late-invert ',(cadadr expr) ,new-val
                              ,@(cddr
                                 (replace-nth
                                  (container-arg-n expr)
-                                 expr obj-sym )))))
+                                 expr obj-sym)))))
                 (t
                  (if (modf-fn-defined? expr)
                      `(funcall (modf-fn ,(car expr))
@@ -356,12 +356,12 @@ functions ahead of time."
                                ,@(cdr
                                   (replace-nth
                                    (container-arg-n expr)
-                                   expr obj-sym )))
+                                   expr obj-sym)))
                      `(late-invert ',(car expr) ,new-val
                                    ,@(cdr
                                       (replace-nth
                                        (container-arg-n expr)
-                                       expr obj-sym ))))))
+                                       expr obj-sym))))))
               (nth (container-arg-n expr) expr)
               obj-sym env)))))
 
@@ -381,21 +381,21 @@ form."
   (if more
       (destructuring-bind (next-symbol next-place next-value &rest next-more) more
         `(let ((,next-symbol ,(modf-expand value place nil env)))
-           (modf ,next-place ,next-value ,@next-more) ))
-      (modf-expand value place nil env) ))
+           (modf ,next-place ,next-value ,@next-more)))
+      (modf-expand value place nil env)))
 
 (defun find-container (place)
   (cond ((atom place)
-         place )
+         place)
         ((gethash (car place) *modf-rewrites*)
-         (find-container (funcall (gethash (car place) *modf-rewrites*) place)) )
+         (find-container (funcall (gethash (car place) *modf-rewrites*) place)))
         ((not (expandable? place))
-         (error "You can only use FSETF if you are modfifying a container.  I don't have a place to set when given ~A." place) )
+         (error "You can only use FSETF if you are modfifying a container.  I don't have a place to set when given ~A." place))
         (t (let ((nth-arg (container-arg-n place)))
              (unless nth-arg
                (error "I can't figure out which argument is the container in ~A."
-                      place ))
-             (find-container (nth nth-arg place)) ))))
+                      place))
+             (find-container (nth nth-arg place))))))
 
 ;; <<>>=
 (defmacro fsetf (place value &rest more)
@@ -405,12 +405,12 @@ form."
       (if more
           `(let ((,val-sym ,value))
              (setf ,container (modf ,place ,val-sym))
-             (fsetf ,@more) )
+             (fsetf ,@more))
           `(let ((,val-sym ,value))
              (setf ,container (modf ,place ,val-sym))
-             ,val-sym )))))
+             ,val-sym)))))
 
 ;; <<>>=
 (defmacro modf-eval (&rest args)
-  `(progn ,@args) )
+  `(progn ,@args))
 
