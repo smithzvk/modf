@@ -1,8 +1,8 @@
 
 (asdf:defsystem :modf-test
-  :name "Modf test suite"
   :author "Zachary Smith <zachkostsmith@gmail.com>"
-  :license "Modified BSD"
+  :license "3 Clause BSD (http://opensource.org/licenses/BSD-3-Clause)"
+  :description "Modf test suite"
   :components ((:file "test-setup")
                (:file "modf-test"))
   :serial t
