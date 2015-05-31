@@ -1,6 +1,6 @@
 
 (asdf:defsystem :modf
-  :author "Zachary Smith <zachkostsmith@gmail.com>"
+  :author "Zach Kost-Smith <zachkostsmith@gmail.com>"
   :license "3 Clause BSD (http://opensource.org/licenses/BSD-3-Clause)"
   :description "A SETF like macro for functional programming"
   :long-description
