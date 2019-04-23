@@ -105,9 +105,9 @@
 (defstruct (late-including (:include late-included)) a b c)
 
 (defun li-equal (obj1 obj2)
-  (and (is (equal (late-including-d obj1) (late-including-d obj2)))
-       (is (equal (late-including-e obj1) (late-including-e obj2)))
-       (is (equal (late-including-f obj1) (late-including-f obj2)))
+  (and (is (equal (late-including-a obj1) (late-including-a obj2)))
+       (is (equal (late-including-b obj1) (late-including-b obj2)))
+       (is (equal (late-including-c obj1) (late-including-c obj2)))
        (is (equal (late-including-included obj1)
                   (late-including-included obj2)))))
 
