@@ -163,4 +163,4 @@ Zach Kost-Smith
 
 ** License
 
-3-Clause BSD
+3-Clause BSD.  See file COPYING.
