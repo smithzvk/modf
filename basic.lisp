@@ -80,21 +80,31 @@
     (setf (apply #'aref new-arr idx) new-val)
     new-arr))
 
-;; @\section{Hash Table Manipulations}
+;; @\section{Plists and hash tables}
 
-;; @Same deal as arrays.  Avoid using this for large hash tables which, quite
-;; frankly, is the most common use case for any hash tables.  It is just here
-;; for completeness.  If you are using a hash table and need to functionally
-;; modify it many times, then use a functional dictionary structure, like an
-;; FSet map or a FUNDS dictionary.
-
-(define-modf-function gethash 2 (new-val key hash-table)
-  (let ((new-hash (alexandria:copy-hash-table hash-table)))
-    (setf (gethash key new-hash) new-val)
-    new-hash))
+;; @Plist modification is supported via GETF.  This is meant as a convenience
+;; function and isn't optimized for large plists which could share significant
+;; structure.  It simply copies the list and mutates with SETF.
 
 (define-modf-function getf 2 (new-val plist key)
   (let ((new-plist (copy-list plist)))
     (setf (getf new-plist key)
           new-val)
     new-plist))
+
+;; @Note that for many purposes, you won't need this functionality as GETF will
+;; return the earliest occurrence of a value found in the plist.  For most uses
+;; of plists, you can simply prepend the value you want.
+
+;; @Hash tables have the same limitations as arrays, they are designed with
+;; mutation in mind and therefore cannot be efficiently used in a functional
+;; way.  Avoid using this for large hash tables which, quite frankly, is the
+;; most common use case for any hash tables.  It is just here for completeness.
+;; If you are using a hash table and need to functionally modify it many times,
+;; then use a functional dictionary structure, like an FSet map or a FUNDS
+;; dictionary.
+
+(define-modf-function gethash 2 (new-val key hash-table)
+  (let ((new-hash (alexandria:copy-hash-table hash-table)))
+    (setf (gethash key new-hash) new-val)
+    new-hash))

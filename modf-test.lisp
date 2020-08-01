@@ -169,6 +169,20 @@
     ;;                                                 'two))))
     ))
 
+(deftest test-plists ()
+  (let* ((string-key "string-key")
+         (plist `(:a 1 :b 2 :b 5 ,string-key 10)))
+    (is (equal (modf (getf plist :a) 0)
+               `(:a 0 :b 2 :b 5 ,string-key 10)))
+    (is (equal (modf (getf plist :b) 0)
+               `(:a 1 :b 0 :b 5 ,string-key 10)))
+    (is (equal (modf (getf plist :not-present) 0)
+               `(:not-present 0 :a 1 :b 2 :b 5 ,string-key 10)))
+    (is (equal (modf (getf plist string-key) 100)
+               `(:a 1 :b 2 :b 5 ,string-key 100)))
+    (let ((equal-but-not-eq (string-downcase (string-upcase string-key))))
+      (is (equal (modf (getf plist equal-but-not-eq) 100)
+                 `(,string-key 100 :a 1 :b 2 :b 5 ,string-key 10))))))
 
 
 (deftest test-arrays ()
