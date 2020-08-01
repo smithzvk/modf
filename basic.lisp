@@ -93,3 +93,8 @@
     (setf (gethash key new-hash) new-val)
     new-hash))
 
+(define-modf-function getf 2 (new-val plist key)
+  (let ((new-plist (copy-list plist)))
+    (setf (getf new-plist key)
+          new-val)
+    new-plist))
